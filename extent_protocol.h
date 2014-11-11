@@ -12,9 +12,9 @@ class extent_protocol {
   enum xxstatus { OK, RPCERR, NOENT, IOERR, FBIG};
   enum rpc_numbers {
     put = 0x6001,
-    get,
-    getattr,
-    remove
+    get = 0x6002,
+    getattr = 0x6003,
+    remove = 0x6004
   };
   static const unsigned int maxextent = 8192*1000;
 
