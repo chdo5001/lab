@@ -91,5 +91,18 @@ yfs_client::getdir(inum inum, dirinfo &din)
   return r;
 }
 
+int yfs_client::readdir(inum di, std::map<std::string, extent_protocol::extentid_t>& entries ) {
+	printf("readdir %016llx\n", di);
+	//std::list<dirent> dirent_l;
+	if (ec->readdir(di, entries) != extent_protocol::OK) {
+		return IOERR;
+	}
+	return OK;
+}
+
+/*
+int yfs_client::ilookup(inum di, std::string name) {
+	return
+}*/
 
 

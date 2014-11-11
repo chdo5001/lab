@@ -218,7 +218,9 @@ fuseserver_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 
 
    // fill in the b data structure using dirbuf_add
-
+	// std::list<dirent> entries;
+	// yfs_client::readdir(inum, &entries)
+	// for (e in entries) : dirbuf_add(&b, e.name, e.inum)
 
    reply_buf_limited(req, b.p, b.size, off, size);
    free(b.p);

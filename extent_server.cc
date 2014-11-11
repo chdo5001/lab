@@ -7,10 +7,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-//#include <ctime>
 #include <time.h>
 
-extent_server::extent_server() {}
+extent_server::extent_server() 
+{
+	std::map<std::string, extent_protocol::extentid_t> dir_entries;
+	dirid_fmap_m[0x1] = dir_entries;
+}
 
 // TODO: review changes of ctime/atime/mtime
 
@@ -28,14 +31,31 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 	return extent_protocol::OK;
 }
 
+int extent_server::readdir(extent_protocol::extentid_t dirid, std::map<std::string, extent_protocol::extentid_t>& entries) {
+	if (dirid_fmap_m.count(dirid) == 0) {
+		return extent_protocol::IOERR;
+	}
+	//extent_protocol::dirent* entry;
+	entries = dirid_fmap_m[dirid];
+	/*
+	for (std::list::iterator it = entries.begin(); it < entries.end(); it++) {
+		entry = new extent_protocol::dirent();
+		entry->name = it->name;
+		entry->inum = it->inum;
+		entries.push_back(entry);
+	}
+	*/
+	return extent_protocol::OK;
+}
 int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
 {	
-	if (fileid_content_m.count(id) == 0) {
-		return extent_protocol::IOERR;
-	} 
+
+		if (fileid_content_m.count(id) == 0) {
+			return extent_protocol::IOERR;
+		} 
 	
-	buf = fileid_content_m[id];
-	fileid_attr_m[id].atime = (unsigned int) time(NULL);
+		buf = fileid_content_m[id];
+		fileid_attr_m[id].atime = (unsigned int) time(NULL);
 	
 	return extent_protocol::OK;
 }
@@ -61,5 +81,16 @@ int extent_server::remove(extent_protocol::extentid_t id, int &)
 	fileid_content_m.erase(id);
 	fileid_attr_m.erase(id);
 	return extent_protocol::OK;
+}
+bool extent_server::isfile(extent_protocol::extentid_t id)
+{
+  if(id & 0x80000000)
+    return true;
+  return false;
+}
+
+bool extent_server::isdir(extent_protocol::extentid_t id)
+{
+  return ! isfile(id);
 }
 

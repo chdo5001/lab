@@ -14,7 +14,8 @@ class extent_protocol {
     put = 0x6001,
     get = 0x6002,
     getattr = 0x6003,
-    remove = 0x6004
+    remove = 0x6004,
+	readdir = 0x6005
   };
   static const unsigned int maxextent = 8192*1000;
 
@@ -23,6 +24,11 @@ class extent_protocol {
     unsigned int mtime;
     unsigned int ctime;
     unsigned int size;
+  };
+  
+  struct dirent {
+    std::string name;
+    unsigned long long inum;
   };
 };
 
