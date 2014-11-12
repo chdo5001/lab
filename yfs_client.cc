@@ -128,4 +128,11 @@ yfs_client::inum yfs_client::ilookup(inum di, const char* name) {
 	return id;
 }
 
+int yfs_client::createFile(inum parent, const char *name, mode_t mode, inum& id) {
+	if (ec->createFile(parent, name, mode, id) != extent_protocol::OK) {
+		return IOERR;
+	}
+
+	return OK;
+}
 

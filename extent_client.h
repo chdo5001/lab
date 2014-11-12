@@ -21,6 +21,7 @@ class extent_client {
   extent_protocol::status put(extent_protocol::extentid_t eid, std::string buf);
   extent_protocol::status remove(extent_protocol::extentid_t eid);
   extent_protocol::status readdir(extent_protocol::extentid_t di, std::map<std::string, extent_protocol::extentid_t>& entries);
+  extent_protocol::status createFile(extent_protocol::extentid_t parent, const char *name, mode_t mode, extent_protocol::extentid_t& id);
 };
 
 #endif 

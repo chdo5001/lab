@@ -125,8 +125,24 @@ yfs_client::status
 fuseserver_createhelper(fuse_ino_t parent, const char *name,
      mode_t mode, struct fuse_entry_param *e)
 {
+	yfs_client::inum id;
+	if (!(yfs->createFile(parent, name, mode, id) == yfs_client::OK)) {
+		return yfs_client::IOERR;
+	}
+	getattr(id, e->attr);
+	
+	e->ino = (id & 0xFFFFFFFF);  // shouldn't e->ino = id; do the job, too?
+	/*
+	e->attr.st_mode = S_IFREG | 0666;  // TODO: check this
+    e->attr.st_nlink = 1; // TODO: check this
+    e->attr.st_atime = finfo.atime;
+    e->attr.st_mtime = finfo.mtime;
+    e->attr.st_ctime = finfo.ctime;
+    e->attr.st_size = finfo.size;
+	*/
+	// return yfs_client::NOENT;
   // You fill this in
-  return yfs_client::NOENT;
+  return yfs_client::OK;
 }
 
 void

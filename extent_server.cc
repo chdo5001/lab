@@ -16,6 +16,8 @@ extent_server::extent_server()
 }
 
 // TODO: review changes of ctime/atime/mtime
+// TODO: extend dirid_fmap_m to store not only files, but dirs too (actually, this only needs additional isFile-checks 
+// 		 in some methods (e.g. readdir)
 
 int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 {
@@ -44,6 +46,7 @@ int extent_server::readdir(extent_protocol::extentid_t dirid, std::map<std::stri
 	
 	return extent_protocol::OK;
 }
+
 int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
 {	
 
@@ -89,5 +92,33 @@ bool extent_server::isfile(extent_protocol::extentid_t id)
 bool extent_server::isdir(extent_protocol::extentid_t id)
 {
   return ! isfile(id);
+}
+
+int extent_server::createFile(extent_protocol::extentid_t parent, const char *name, mode_t mode, extent_protocol::extentid_t id)
+{
+	// TODO: generate random numnber
+	// TODO: Add error handling (check for duplicate names, etc)
+	// TODO: store the mode somewhere
+	id = 123;
+	int r;
+	put(id, "", r);
+	//std::map<std::string, extent_protocol::extentid_t>* dir_entries;
+	if (dirid_fmap_m.count(parent) == 0) {
+		return extent_protocol::NOENT;
+	}
+	std::string* str = new std::string(name);
+	dirid_fmap_m[parent][*str] = id;
+	/*
+	extent_protocol::attr a;
+	getattr(id, a);
+	e->ino = (id & 0xFFFFFFFF);  // shouldn't e->ino = id; do the job, too?
+	e->attr.st_mode = S_IFREG | 0666;  // TODO: check this
+    e->attr.st_nlink = 1; // TODO: check this
+    e->attr.st_atime = a.atime;
+    e->attr.st_mtime = a.mtime;
+    e->attr.st_ctime = a.ctime;
+    e->attr.st_size = a.size;*/
+	//return extent_protocol::NOENT;
+	return extent_protocol::OK;
 }
 

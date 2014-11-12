@@ -15,7 +15,8 @@ class extent_protocol {
     get = 0x6002,
     getattr = 0x6003,
     remove = 0x6004,
-	readdir = 0x6005
+	readdir = 0x6005,
+	createFile = 0x6006
   };
   static const unsigned int maxextent = 8192*1000;
 

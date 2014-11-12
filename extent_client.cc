@@ -62,3 +62,11 @@ extent_client::readdir(extent_protocol::extentid_t di, std::map<std::string, ext
   return ret;
 }
 
+extent_protocol::status 
+extent_client::createFile(extent_protocol::extentid_t parent, const char *name, mode_t mode, extent_protocol::extentid_t& id) 
+{
+	extent_protocol::status ret = extent_protocol::OK;
+	ret = cl->call(extent_protocol::createFile, parent, name, mode, id);
+	return ret;
+}
+
