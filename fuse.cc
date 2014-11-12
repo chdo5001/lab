@@ -156,17 +156,19 @@ fuseserver_lookup(fuse_req_t req, fuse_ino_t parent, const char *name)
 {
   struct fuse_entry_param e;
   bool found = false;
-
+	yfs_client::inum inum = parent;
   e.attr_timeout = 0.0;
   e.entry_timeout = 0.0;
-
+	
   // You fill this in:
   // Look up the file named `name' in the directory referred to by
   // `parent' in YFS. If the file was found, initialize e.ino and
   // e.attr appropriately.
-
-
-  
+	e.ino = yfs->ilookup(inum, name);
+	if (e.ino != 0) {
+		found = true;
+		getattr(e.ino, e.attr);
+	} 
   if (found)
     fuse_reply_entry(req, &e);
   else
@@ -207,7 +209,7 @@ fuseserver_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
 {
   yfs_client::inum inum = ino; // req->in.h.nodeid;
   struct dirbuf b;
-  yfs_client::dirent e;
+  // yfs_client::dirent e;
 
   printf("fuseserver_readdir\n");
 
@@ -222,10 +224,11 @@ fuseserver_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
    // fill in the b data structure using dirbuf_add
 	std::list<yfs_client::dirent> entries;
 	yfs->readdir(inum, entries);
-	//TODO: for (e in entries) : dirbuf_add(&b, e.name, e.inum)
-
-   reply_buf_limited(req, b.p, b.size, off, size);
-   free(b.p);
+	for (std::list<yfs_client::dirent>::iterator it = entries.begin(); it != entries.end(); it++) {
+		dirbuf_add(&b, (it->name).c_str(), it->inum);
+	}
+	reply_buf_limited(req, b.p, b.size, off, size);
+	free(b.p);
  }
 
 

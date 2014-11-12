@@ -111,9 +111,21 @@ int yfs_client::readdir(inum di, std::list<dirent>& entries ) {
 	return OK;
 }
 
-/* TODO
-int yfs_client::ilookup(inum di, std::string name) {
-	return
-}*/
+
+yfs_client::inum yfs_client::ilookup(inum di, const char* name) {
+	inum id = 0;
+	dirent e;
+	std::list<dirent> entries;
+	readdir(di, entries);
+	while(entries.size() != 0) {
+		e = entries.front();
+		if (e.name.compare(name)) {
+			id = e.inum;
+			break;
+		}
+		entries.pop_front();
+	}
+	return id;
+}
 
 

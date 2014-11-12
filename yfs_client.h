@@ -40,7 +40,7 @@
 
   bool isfile(inum);
   bool isdir(inum);
-  inum ilookup(inum di, std::string name);
+  inum ilookup(inum di, const char* name);
   int readdir(inum di, std::list<dirent>& entries );
 
   int getfile(inum, fileinfo &);
