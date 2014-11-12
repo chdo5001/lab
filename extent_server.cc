@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <inttypes.h>  
 
 extent_server::extent_server() 
 {
@@ -96,28 +97,28 @@ bool extent_server::isdir(extent_protocol::extentid_t id)
 
 int extent_server::createFile(extent_protocol::extentid_t parent, const char *name, mode_t mode, extent_protocol::extentid_t id)
 {
-	// TODO: generate random numnber
+
 	// TODO: Add error handling (check for duplicate names, etc)
 	// TODO: store the mode somewhere
-	id = 123;
+	// TODO: check correctness of random number generation
+
+	int fd;
+	uint64_t num; 
+	if ((fd = open("/dev/random", O_RDONLY)) == -1)
+	{
+		exit(2);
+	}
+	read(fd, &num, 8);
+	close(fd);
+	
+	id = num;
 	int r;
 	put(id, "", r);
-	//std::map<std::string, extent_protocol::extentid_t>* dir_entries;
 	if (dirid_fmap_m.count(parent) == 0) {
 		return extent_protocol::NOENT;
 	}
 	std::string* str = new std::string(name);
 	dirid_fmap_m[parent][*str] = id;
-	/*
-	extent_protocol::attr a;
-	getattr(id, a);
-	e->ino = (id & 0xFFFFFFFF);  // shouldn't e->ino = id; do the job, too?
-	e->attr.st_mode = S_IFREG | 0666;  // TODO: check this
-    e->attr.st_nlink = 1; // TODO: check this
-    e->attr.st_atime = a.atime;
-    e->attr.st_mtime = a.mtime;
-    e->attr.st_ctime = a.ctime;
-    e->attr.st_size = a.size;*/
 	//return extent_protocol::NOENT;
 	return extent_protocol::OK;
 }
