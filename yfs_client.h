@@ -41,7 +41,7 @@
   bool isfile(inum);
   bool isdir(inum);
   inum ilookup(inum di, std::string name);
-  int readdir(inum di, std::map<std::string, extent_protocol::extentid_t>& entries );
+  int readdir(inum di, std::list<dirent>& entries );
 
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);

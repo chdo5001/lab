@@ -91,16 +91,27 @@ yfs_client::getdir(inum inum, dirinfo &din)
   return r;
 }
 
-int yfs_client::readdir(inum di, std::map<std::string, extent_protocol::extentid_t>& entries ) {
+
+int yfs_client::readdir(inum di, std::list<dirent>& entries ) {
 	printf("readdir %016llx\n", di);
 	//std::list<dirent> dirent_l;
-	if (ec->readdir(di, entries) != extent_protocol::OK) {
+	// Change type of entries to map for rfc. Had problems with marshalling of lists
+	std::map<std::string, extent_protocol::extentid_t> entries_m;
+	if (ec->readdir(di, entries_m) != extent_protocol::OK) {
 		return IOERR;
+	}
+	dirent* entry = 0;
+	std::map<std::string, extent_protocol::extentid_t>::iterator it;
+	for (it = entries_m.begin(); it != entries_m.end(); it++) {
+		entry = new dirent();
+		entry->name = it->first;
+		entry->inum = it->second;
+		entries.push_back(*entry);
 	}
 	return OK;
 }
 
-/*
+/* TODO
 int yfs_client::ilookup(inum di, std::string name) {
 	return
 }*/

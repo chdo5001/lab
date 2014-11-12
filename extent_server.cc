@@ -36,15 +36,12 @@ int extent_server::readdir(extent_protocol::extentid_t dirid, std::map<std::stri
 		return extent_protocol::IOERR;
 	}
 	//extent_protocol::dirent* entry;
-	entries = dirid_fmap_m[dirid];
-	/*
-	for (std::list::iterator it = entries.begin(); it < entries.end(); it++) {
-		entry = new extent_protocol::dirent();
-		entry->name = it->name;
-		entry->inum = it->inum;
-		entries.push_back(entry);
+	std::map<std::string, extent_protocol::extentid_t>* fmap = &dirid_fmap_m[dirid];
+	std::map<std::string, extent_protocol::extentid_t>::iterator fmap_it = fmap->begin();
+	for (; fmap_it != fmap->end(); fmap_it++) {
+		entries[fmap_it->first] = fmap_it->second;
 	}
-	*/
+	
 	return extent_protocol::OK;
 }
 int extent_server::get(extent_protocol::extentid_t id, std::string &buf)
