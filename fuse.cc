@@ -277,20 +277,13 @@ void
 fuseserver_open(fuse_req_t req, fuse_ino_t ino,
      struct fuse_file_info *fi)
 {
-  // You fill this in
-  printf("fuse::open file %d\n", ino);
-  // TODO: try to open file, error if already open.
-  
-  if (yfs->open(ino) == yfs_client::OK) {
-	fi->fh = ino;
-	fi->lock_owner = getpid();
-	fuse_reply_open(req, fi);
-  } else {
-	fuse_reply_err(req, ENOENT);
-  }
-  return;
-  //fuse_reply_err(req, ENOSYS);
-
+	if (yfs->open(ino) == yfs_client::OK) {
+		fi->fh = ino;
+		fuse_reply_open(req, fi);
+	} else {
+		fuse_reply_err(req, ENOENT);
+	}
+	return;
 }
 
 void
