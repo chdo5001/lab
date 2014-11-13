@@ -146,9 +146,12 @@ int extent_server::createFile(extent_protocol::extentid_t parent, std::string na
 
 int extent_server::open(extent_protocol::extentid_t id, int&) 
 {
+	time_t raw_time ;
+	time(&raw_time);
 	// TODO: is there something else to do here in this method?
 	fileid_open_m[id] = fileid_open_m[id] + 1;
-
+	extent_protocol::attr* attr = &(fileid_attr_m[id]);
+	attr->atime = (unsigned int) raw_time;
 	return extent_protocol::OK;
 }
 
