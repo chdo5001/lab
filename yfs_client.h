@@ -40,10 +40,15 @@
 
   bool isfile(inum);
   bool isdir(inum);
-  inum ilookup(inum di, std::string name);
-
+  inum ilookup(inum di, const char* name);
+  int readdir(inum di, std::list<dirent>& entries );
+  int createFile(inum parent, const char *name, mode_t mode, inum& id);
+  int setattr(inum di, fileinfo &finfo);
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
+  int read(inum di,off_t off, size_t size, std::string &);
+  int unlink(inum di, const char *name);
+  int open(inum id);
 };
 
 #endif 
