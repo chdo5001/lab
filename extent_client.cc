@@ -15,7 +15,7 @@ extent_client::extent_client(std::string dst)
 	make_sockaddr(dst.c_str(), &dstsock);
   cl = new rpcc(dstsock);
   if (cl->bind() != 0) {
-    printf("extent_client: bind failed\n");
+    //printf("extent_client: bind failed\n");
   }
 }
 
@@ -57,10 +57,10 @@ extent_client::remove(extent_protocol::extentid_t eid)
 extent_protocol::status
 extent_client::readdir(extent_protocol::extentid_t di, std::map<std::string, extent_protocol::extentid_t>& entries)
 {
-printf("extent_client readdir\n");
+//printf("extent_client readdir\n");
   extent_protocol::status ret = extent_protocol::OK;
   ret = cl->call(extent_protocol::readdir, di, entries);
-  printf("Return from extent_client readdir\n");
+  //printf("Return from extent_client readdir\n");
   return ret;
 }
 

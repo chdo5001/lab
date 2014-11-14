@@ -59,7 +59,7 @@ yfs_client::getfile(inum inum, fileinfo &fin)
     r = IOERR;
     goto release;
   }
-printf("getfile fileinfo atime %d\n", a.atime);
+//printf("getfile fileinfo atime %d\n", a.atime);
   fin.atime = a.atime;
   fin.mtime = a.mtime;
   fin.ctime = a.ctime;
@@ -93,61 +93,61 @@ yfs_client::getdir(inum inum, dirinfo &din)
 
 
 int yfs_client::readdir(inum di, std::list<dirent>& entries ) {
-	printf("readdir %016llx\n", di);
+	//printf("readdir %016llx\n", di);
 	//std::list<dirent> dirent_l;
 	// Change type of entries to map for rfc. Had problems with marshalling of lists
 	std::map<std::string, extent_protocol::extentid_t> entries_m;
-	printf("Calling ec->readdir\n");
+	//printf("Calling ec->readdir\n");
 	if (ec->readdir(di, entries_m) != extent_protocol::OK) {
 		return IOERR;
 	}
-	printf("Returned from readdir. entries.size() = %d\n", entries_m.size());
+	//printf("Returned from readdir. entries.size() = %d\n", entries_m.size());
 	dirent* entry = 0;
 	std::map<std::string, extent_protocol::extentid_t>::iterator it;
-	printf("Build up list\n");
+	//printf("Build up list\n");
 	for (it = entries_m.begin(); it != entries_m.end(); it++) {
 		entry = new dirent();
 		entry->name = it->first;
 		entry->inum = it->second;
 		entries.push_back(*entry);
 	}
-	printf("Done\n");
+	//printf("Done\n");
 	return OK;
 }
 
 
 yfs_client::inum yfs_client::ilookup(inum di, const char* name) {
-	printf("Entering yfs_client::ilookup %s", name);
-	printf("in dir %d\n", di);
+	//printf("Entering yfs_client::ilookup %s", name);
+	//printf("in dir %d\n", di);
 	inum id = 0;
 	dirent e;
 	std::list<dirent> entries;
 	readdir(di, entries);
-	printf("Start comparing\n");
+	//printf("Start comparing\n");
 	std::string str_name (name);
 	while(entries.size() != 0) {
 		e = entries.front();
-		printf("Compare e.name %s ", e.name.c_str());
-		printf("with %s\n", str_name.c_str());
+		//printf("Compare e.name %s ", e.name.c_str());
+		//printf("with %s\n", str_name.c_str());
 		if (e.name.compare(str_name) == 0) {
-			printf("Match. id is %d", e.inum);
+			//printf("Match. id is %d", e.inum);
 			id = e.inum;
 			break;
 		}
 		entries.pop_front();
 	}
-	printf("Exiting yfs_client:ilookup. Return id %d\n", id);
+	//printf("Exiting yfs_client:ilookup. Return id %d\n", id);
 	return id;
 }
 
 int yfs_client::createFile(inum parent, const char *name, mode_t mode, inum& id) {
-	printf("Entering yfs_client createFile\n");
+	//printf("Entering yfs_client createFile\n");
 	if (ec->createFile(parent, name, mode) != extent_protocol::OK) {
 		return IOERR;
 	}
-	printf("Call lookup\n");
+	//printf("Call lookup\n");
 	id = ilookup(parent, name);
-	printf("Exit yfs_client createfile. New fileid is %d\n", id);
+	//printf("Exit yfs_client createfile. New fileid is %d\n", id);
 	return OK;
 }
 
