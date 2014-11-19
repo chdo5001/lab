@@ -81,32 +81,27 @@ fuseserver_getattr(fuse_req_t req, fuse_ino_t ino,
 void
 fuseserver_setattr(fuse_req_t req, fuse_ino_t ino, struct stat *attr, int to_set, struct fuse_file_info *fi)
 {
-    /*
+    
 	yfs_client::inum inum = ino;
     yfs_client::fileinfo info;
     yfs_client::status ret;
-    
-  printf("fuseserver_setattr 0x%x\n", to_set);
-  if (FUSE_SET_ATTR_SIZE & to_set) {
-    printf("   fuseserver_setattr set size to %zu\n", attr->st_size);
     struct stat st;
-    info.size = attr.st_size;
-    ret = yfs->setattr(inum,info);
-    if(ret != yfs_client::OK){
-        fuse_reply_err(req, ENOSYS);
-        return;
-    }
-    ret = fuseserver_getattr(inum,st);
-    if(ret != yfs_client::OK){
-        fuse_reply_err(req, ENOSYS);
-        return;
-    }
-    fuse_reply_attr(req,&st,0);
-  }
-  else{
-      fuse_reply_err(req, ENOSYS);
-  }
-  */
+	printf("fuseserver_setattr 0x%x\n", to_set);
+	if (FUSE_SET_ATTR_SIZE & to_set) {
+		printf("   fuseserver_setattr set size to %zu\n", attr->st_size);
+		info.size = attr->st_size;
+		ret = yfs->setattr(inum,info);
+		if(ret != yfs_client::OK){
+			fuse_reply_err(req, ENOSYS);
+			return;
+		}
+	}
+	ret = getattr(inum,st);
+	if(ret == yfs_client::OK){
+		fuse_reply_attr(req,&st,0);
+	} else {
+		fuse_reply_err(req, ENOSYS);
+	}
 }
 
 void
@@ -135,11 +130,21 @@ fuseserver_write(fuse_req_t req, fuse_ino_t ino,
   struct fuse_file_info *fi)
 {
   // You fill this in
+	yfs_client::inum inum = ino;
+    yfs_client::status ret;
+	if (yfs->write(inum, off, size, buf) == yfs_client::OK) {
+		// When no error occurs, all bytes are written
+		fuse_reply_write(req, size);
+	} else {
+		fuse_reply_err(req, ENOSYS);
+	}
+
+ /*
 #if 0
   fuse_reply_write(req, bytes_written);
 #else
   fuse_reply_err(req, ENOSYS);
-#endif
+#endif*/
 }
 
 yfs_client::status
@@ -295,7 +300,7 @@ fuseserver_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
   yfs_client::inum parent_inum = parent;
   yfs_client::status ret;
   
-  ret = yfs->createFile(parent_inum,name,mode,inum);
+  ret = yfs->createDir(parent_inum,name,mode,inum);
   
   if(ret == yfs_client::OK){
       struct stat st;

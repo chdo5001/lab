@@ -20,10 +20,10 @@ extent_client::extent_client(std::string dst)
 }
 
 extent_protocol::status
-extent_client::get(extent_protocol::extentid_t eid, std::string &buf)
+extent_client::read(extent_protocol::extentid_t id, off_t off, size_t size, std::string &buf)
 {
   extent_protocol::status ret = extent_protocol::OK;
-  ret = cl->call(extent_protocol::get, eid, buf);
+  ret = cl->call(extent_protocol::get, id, off, size, buf);
   return ret;
 }
 
@@ -65,7 +65,7 @@ extent_client::readdir(extent_protocol::extentid_t di, std::map<std::string, ext
 }
 
 extent_protocol::status 
-extent_client::createFile(extent_protocol::extentid_t parent, const char *name, mode_t mode) 
+extent_client::createFile(extent_protocol::extentid_t parent, const char *name) 
 {
 	extent_protocol::status ret = extent_protocol::OK;
 	//extent_protocol::dirent dirent;
@@ -85,3 +85,31 @@ extent_client::open(extent_protocol::extentid_t id)
 	return ret;
 }
 
+extent_protocol::status
+extent_client::createDir(extent_protocol::extentid_t parent, const char* name) 
+{
+	int r;
+	std::string str_name (name);
+	return cl->call(extent_protocol::createDir, parent, name, r);
+}
+
+extent_protocol::status
+extent_client::setMode(extent_protocol::extentid_t id, mode_t mode) 
+{
+	int r;
+	return cl->call(extent_protocol::setMode, id, mode, r);
+}
+
+extent_protocol::status 
+extent_client::setAttr(extent_protocol::extentid_t id, unsigned long long size) 
+{
+	int r;
+	return cl->call(extent_protocol::setAttr, size, r);
+}
+
+extent_protocol::status 
+extent_client::write(extent_protocol::extentid_t id, off_t off, size_t size, const char* buf) {
+	int r;
+	std::string str_buf (buf);
+	return cl->call(extent_protocol::write, id, off, size, str_buf, r);
+}

@@ -26,7 +26,12 @@ main(int argc, char *argv[])
   server.reg(extent_protocol::readdir, &ls, &extent_server::readdir);
   server.reg(extent_protocol::createFile, &ls, &extent_server::createFile);
   server.reg(extent_protocol::open, &ls, &extent_server::open);
-
+  server.reg(extent_protocol::createDir, &ls, &extent_server::createDir);
+  server.reg(extent_protocol::setMode, &ls, &extent_server::setMode);
+  server.reg(extent_protocol::getMode, &ls, &extent_server::getMode);
+  server.reg(extent_protocol::setAttr, &ls, &extent_server::setAttr);
+  server.reg(extent_protocol::write, &ls, &extent_server::write);
+  
   while(1)
     sleep(1000);
 }

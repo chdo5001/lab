@@ -17,7 +17,12 @@ class extent_protocol {
     remove = 0x6004,
 	readdir = 0x6005,
 	createFile = 0x6006,
-	open = 0x6007
+	open = 0x6007,
+	createDir = 0x6008,
+	setMode = 0x6009,
+	getMode = 0x6010,
+	setAttr = 0x6011,
+	write = 0x6012
   };
   static const unsigned int maxextent = 8192*1000;
 
@@ -54,4 +59,17 @@ operator<<(marshall &m, extent_protocol::attr a)
   return m;
 }
 
+inline marshall & 
+operator<<(marshall &m, const long long l)
+{
+	m << l;
+	return m;
+}
+
+inline unmarshall &
+operator>>(unmarshall &u, const long long &l)
+{
+	u >> l;
+	return u;
+}
 #endif 

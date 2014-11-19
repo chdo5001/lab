@@ -92,7 +92,8 @@ yfs_client::getdir(inum inum, dirinfo &din)
 }
 
 
-int yfs_client::readdir(inum di, std::list<dirent>& entries ) {
+int 
+yfs_client::readdir(inum di, std::list<dirent>& entries ) {
 	//printf("readdir %016llx\n", di);
 	//std::list<dirent> dirent_l;
 	// Change type of entries to map for rfc. Had problems with marshalling of lists
@@ -116,7 +117,8 @@ int yfs_client::readdir(inum di, std::list<dirent>& entries ) {
 }
 
 
-yfs_client::inum yfs_client::ilookup(inum di, const char* name) {
+yfs_client::inum 
+yfs_client::ilookup(inum di, const char* name) {
 	//printf("Entering yfs_client::ilookup %s", name);
 	//printf("in dir %d\n", di);
 	inum id = 0;
@@ -140,45 +142,72 @@ yfs_client::inum yfs_client::ilookup(inum di, const char* name) {
 	return id;
 }
 
-int yfs_client::createFile(inum parent, const char *name, mode_t mode, inum& id) {
+int 
+yfs_client::createFile(inum parent, const char *name, mode_t mode, inum& id) {
 	//printf("Entering yfs_client createFile\n");
-	if (ec->createFile(parent, name, mode) != extent_protocol::OK) {
-		return IOERR;
+	extent_protocol::status ret = ec->createFile(parent, name);
+	if (ret != extent_protocol::OK) {
+		return ret;
 	}
 	//printf("Call lookup\n");
 	id = ilookup(parent, name);
+	// TODO: Should we rollback file creation if mode fails? (We should. But maybe we don't need to... :P)
+	// PS: Looking into fuse::getattr(), I think we can ignore the mode completely
+	ret = ec->setMode(id, mode);
 	//printf("Exit yfs_client createfile. New fileid is %d\n", id);
-	return OK;
+	return ret;
 }
 
-int yfs_client::setattr(inum di, fileinfo& finfo){
+int 
+yfs_client::setattr(inum id, fileinfo& finfo){
     extent_protocol::status ret;
-    std::string buf;
+    // std::string buf;
     // put schreibt buf in Datei. Attributen lassen sich damit nicht explizit setzen. Müsste man ne extra funktion für schreiben
-    //ret = ec->put(di,finfo.size, buf);
+    ret = ec->setAttr(id, finfo.size);
     if(ret != extent_protocol::OK){
         return IOERR;
     }
     return ret;
 }
 
-int yfs_client::read(inum di, off_t off, size_t size, std::string& buf){
+int 
+yfs_client::read(inum di, off_t off, size_t size, std::string& buf){
     extent_protocol::status ret;
-    //ret = ec->get(di, (int) off, (unsigned int) size, buf);
-	ret = ec->get(di, buf); // sowas ehr...
-    if(ret != extent_protocol::OK){
+    ret = ec->read(di, off, size, buf);
+	if(ret != extent_protocol::OK){
         return IOERR;
     }
     return ret;
 }
 
-int yfs_client::unlink(inum di, const char* name){
+int 
+yfs_client::unlink(inum di, const char* name){
     //TODO implementieren ->  Remove a file name of the dir di
 }
 
-int yfs_client::open(inum id) {
+int 
+yfs_client::open(inum id) {
 	extent_protocol::status ret;
 	ret = ec->open(id);
 	return ret;
 }
 
+int
+yfs_client::createDir(inum parent, const char* name, mode_t mode, inum& id) 
+{
+	int r = ec->createDir(parent, name);
+	if ( r != extent_protocol::OK) {
+		return r;
+	}
+	id = ilookup(parent, name);
+	// TODO: add rollback if setMode fails (see createFile)?
+	// PS: Looking into fuse::getattr(), I think we can ignore the mode completely
+	r = ec->setMode(id, mode);
+	return r; 
+}
+
+int 
+yfs_client::write(inum id, off_t off, size_t size, const char* buf) 
+{
+	return ec->write(id, off, size, buf);
+}
