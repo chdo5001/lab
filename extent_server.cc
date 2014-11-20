@@ -134,6 +134,9 @@ int extent_server::createFile(extent_protocol::extentid_t parent, std::string na
 	extent_protocol::extentid_t id = num & 0xFFFFFFFF;
 	// and the first bit of the remaining 32 to 1 (for file)
 	id = id | 0x80000000;
+	// TODO: Make sure we have generated a unique number. If not, increase it until a unique one is found
+	// Sth like while(fileid_attr_m.count(id) != 0) {id++}
+	// Take care not to overwrite the first (file/dir bit)
 	int r;
 	//printf("New id = %d\n", id); 
 	// TODO: Move put() behind the condition
@@ -179,7 +182,9 @@ extent_server::createDir(extent_protocol::extentid_t parent, std::string name, i
 	// We're only interested in the last 32bit, as Fuse only uses 32bit-ids. Set the first 32bit to 0
 	// and the first bit of the remaining 32 to 0 (for dir)
 	inum id = num & 0x7FFFFFF;
-	
+	// TODO: Make sure we have generated a unique number. If not, increase it until a unique one is found
+	// Sth like while(fileid_attr_m.count(id) != 0) {id++}
+	// Take care not to overwrite the first (file/dir bit)
 	extent_protocol::attr* attr = new extent_protocol::attr();
 	time_t raw_time ;
 	time(&raw_time);
