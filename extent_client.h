@@ -23,7 +23,7 @@ class extent_client {
   extent_protocol::status open(extent_protocol::extentid_t id); 
   extent_protocol::status createDir(extent_protocol::extentid_t parent, const char* name);
   extent_protocol::status setMode(extent_protocol::extentid_t id, mode_t mode);
-  extent_protocol::status setAttr(extent_protocol::extentid_t id, unsigned long long size);
+  extent_protocol::status setAttr(extent_protocol::extentid_t id, extent_protocol::attr &attr);
   extent_protocol::status write(extent_protocol::extentid_t id, off_t off, size_t size, const char* buf);
 };
 

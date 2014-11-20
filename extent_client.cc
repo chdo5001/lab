@@ -15,15 +15,16 @@ extent_client::extent_client(std::string dst)
 	make_sockaddr(dst.c_str(), &dstsock);
   cl = new rpcc(dstsock);
   if (cl->bind() != 0) {
-    //printf("extent_client: bind failed\n");
+    printf("extent_client: bind failed\n");
   }
 }
 
 extent_protocol::status
 extent_client::read(extent_protocol::extentid_t id, off_t off, size_t size, std::string &buf)
 {
+	unsigned long long offset = (unsigned long long) off;
   extent_protocol::status ret = extent_protocol::OK;
-  ret = cl->call(extent_protocol::get, id, off, size, buf);
+  ret = cl->call(extent_protocol::get, id, offset, size, buf);
   return ret;
 }
 
@@ -101,15 +102,30 @@ extent_client::setMode(extent_protocol::extentid_t id, mode_t mode)
 }
 
 extent_protocol::status 
-extent_client::setAttr(extent_protocol::extentid_t id, unsigned long long size) 
+extent_client::setAttr(extent_protocol::extentid_t id, extent_protocol::attr &attr) 
 {
+	//printf("extent_client: Call extent_server::setAttr  size: %d\n", attr.size);
 	int r;
-	return cl->call(extent_protocol::setAttr, size, r);
+	int ret = cl->call(extent_protocol::setAttr, id, attr, r);
+	return ret;
 }
 
 extent_protocol::status 
 extent_client::write(extent_protocol::extentid_t id, off_t off, size_t size, const char* buf) {
+	//printf("extent_client write enter\n");
 	int r;
+	unsigned long long offset = off;
+/*
+	printf("id: %016llx \n", id);
+	printf("off: %d \n", off);
+	printf("offset: %d \n", offset);
+	printf("size: %d \n", size);
+	printf("string: %s \n", buf);
+	printf("Initialize string\n");*/
 	std::string str_buf (buf);
-	return cl->call(extent_protocol::write, id, off, size, str_buf, r);
+	//printf("str_buf %s\n", str_buf.c_str());
+	//printf("Call\n");
+	r = cl->call(extent_protocol::write, id, offset, size, str_buf, r);
+	//printf("fuse write exit\n");
+	return r;
 }

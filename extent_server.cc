@@ -14,11 +14,17 @@ extent_server::extent_server()
 {
 	std::map<std::string, extent_protocol::extentid_t> dir_entries;
 	dirid_fmap_m[0x1] = dir_entries;
+	extent_protocol::attr* attr = new extent_protocol::attr();
+	time_t raw_time ;
+	time(&raw_time);
+	//printf("rawtime %d\n", raw_time);
+	attr->ctime = (unsigned int)raw_time;
+	attr->mtime = (unsigned int)raw_time;
+	attr->atime = (unsigned int)raw_time;
+	fileid_attr_m[0x1] = *attr;
 }
 
 // TODO: review changes of ctime/atime/mtime
-// TODO: extend dirid_fmap_m to store not only files, but dirs too (actually, this only needs additional isFile-checks 
-// 		 in some methods (e.g. readdir)
 
 int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 {
@@ -33,7 +39,7 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 	attr->mtime = (unsigned int)raw_time;
 	attr->atime = (unsigned int)raw_time;
 	fileid_attr_m[id] = *attr;
-	fileid_content_m[id] = buf;
+	//fileid_content_m[id] = buf;
 	//printf("Exit put\n");
 	return extent_protocol::OK;
 }
@@ -53,21 +59,21 @@ int extent_server::readdir(extent_protocol::extentid_t dirid, std::map<std::stri
 	return extent_protocol::OK;
 }
 
-int extent_server::get(extent_protocol::extentid_t id, off_t off, size_t size, std::string& buf)
+int extent_server::get(extent_protocol::extentid_t id, unsigned long long off, size_t size, std::string& buf)
 {	
 	if (fileid_content_m.count(id) == 0) {
 		return extent_protocol::NOENT;
 	} 
-	//printf("Reading from file %016llx %d bytes f\n", id, size, off);
+	//printf("Reading from file %016llx %d bytes from offset: %d \n", id, size, off);
 	buf = (fileid_content_m[id]).substr(off, size);
-	printf("%s \n", buf.c_str());
+	//printf("Read from file: %s \n", buf.c_str());
 	fileid_attr_m[id].atime = (unsigned int) time(NULL);
 	return extent_protocol::OK;
 }
 
 int extent_server::getattr(extent_protocol::extentid_t id, extent_protocol::attr &a)
 {
-	if (fileid_content_m.count(id) == 0) {
+	if (fileid_attr_m.count(id) == 0) {
 		return extent_protocol::IOERR;
 	}
 	extent_protocol::attr attr = fileid_attr_m[id];
@@ -219,27 +225,37 @@ extent_server::getMode(extent_protocol::extentid_t id, mode_t& mode)
 }
 
 int 
-extent_server::setAttr(extent_protocol::extentid_t id, unsigned long long size, int&)
+extent_server::setAttr(extent_protocol::extentid_t id, extent_protocol::attr attr, int&)
 {
+	//printf("extent_server::setAttr enter. Size: %d\n", attr.size);
 	if (fileid_attr_m.count(id) == 0) {
+		printf("Can't find entry %016llx in attribute list\n", id);
 		return extent_protocol::NOENT;
 	}
 	//extent_protocol::attr* attr = &(fileid_attr_m[id]);
 	//attr->size = size;
+	//printf("Get file content\n");
 	std::string content = fileid_content_m[id];
-	content.resize(size, '\0');
+	//printf("Content: %s\n", content.c_str());
+	//printf("Resize to %d\n", attr.size);
+	content.resize(attr.size, '\0');
+	//printf("New content: %s\n", content.c_str());
 	int r;
+	//printf("put\n");
 	put(id, content, r);
+	//printf("Return OK");
 	return extent_protocol::OK;
 }
 
 int 
-extent_server::write(extent_protocol::extentid_t id, off_t off, size_t size, std::string buf, int&)
+extent_server::write(extent_protocol::extentid_t id, unsigned long long off, size_t size, std::string buf, int&)
 {
+	//printf("extent_server write enter\n");
+	/*
 	if (size != buf.size()) {
-		printf("str sizes do not match");
+		printf("str sizes do not match: %d  <->  %d", size, buf.size());
 		exit(0);
-	}
+	}*/
 	if (fileid_content_m.count(id) == 0) {
 		return extent_protocol::NOENT;
 	} 
@@ -247,8 +263,10 @@ extent_server::write(extent_protocol::extentid_t id, off_t off, size_t size, std
 	if (off + size > content.length()) {
 		content.resize(off+size, '\0');
 	}
-	content.replace(off, size, buf);
+	content.replace(off, size, buf, 0, size);
+	//printf("Write content: %s\n", content.c_str());
 	int r;
 	put(id, content, r);
+	//printf("extent_server write exit\n");
 	return extent_protocol::OK;
 }

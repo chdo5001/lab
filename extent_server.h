@@ -17,8 +17,8 @@ class extent_server {
   extent_server();
 
   int put(extent_protocol::extentid_t id, std::string, int &);
-  int write(extent_protocol::extentid_t id, off_t off, size_t size, std::string buf, int&);
-  int get(extent_protocol::extentid_t id, off_t off, size_t size, std::string& buf);
+  int write(extent_protocol::extentid_t id, unsigned long long off, size_t size, std::string buf, int&);
+  int get(extent_protocol::extentid_t id, unsigned long long off, size_t size, std::string& buf);
   int getattr(extent_protocol::extentid_t id, extent_protocol::attr &a);
   int remove(extent_protocol::extentid_t id, int &);
   int readdir(extent_protocol::extentid_t dirid, std::map<std::string, extent_protocol::extentid_t>& entries);
@@ -28,7 +28,7 @@ class extent_server {
   int createDir(extent_protocol::extentid_t parent, std::string name, int&);
   int setMode(extent_protocol::extentid_t id, mode_t mode, int&); 
   int getMode(extent_protocol::extentid_t id, mode_t& mode);
-  int setAttr(extent_protocol::extentid_t id, unsigned long long size, int&);
+  int setAttr(extent_protocol::extentid_t id, extent_protocol::attr attr, int&);
   
   private:
 	std::map<extent_protocol::extentid_t, int> fileid_open_m;

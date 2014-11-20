@@ -51,8 +51,6 @@ int
 yfs_client::getfile(inum inum, fileinfo &fin)
 {
   int r = OK;
-
-
   printf("getfile %016llx\n", inum);
   extent_protocol::attr a;
   if (ec->getattr(inum, a) != extent_protocol::OK) {
@@ -75,8 +73,6 @@ int
 yfs_client::getdir(inum inum, dirinfo &din)
 {
   int r = OK;
-
-
   printf("getdir %016llx\n", inum);
   extent_protocol::attr a;
   if (ec->getattr(inum, a) != extent_protocol::OK) {
@@ -162,11 +158,16 @@ int
 yfs_client::setattr(inum id, fileinfo& finfo){
     extent_protocol::status ret;
     // std::string buf;
-    // put schreibt buf in Datei. Attributen lassen sich damit nicht explizit setzen. Müsste man ne extra funktion für schreiben
-    ret = ec->setAttr(id, finfo.size);
-    if(ret != extent_protocol::OK){
+	extent_protocol::attr attr;
+	attr.size = finfo.size;
+	attr.mtime = 0;
+	attr.ctime = 0;
+	attr.atime = 0;
+    ret = ec->setAttr(id, attr);
+	//printf("ec::setAttr return value: %d\n", ret);
+    /*if(ret != extent_protocol::OK){
         return IOERR;
-    }
+    }*/
     return ret;
 }
 
@@ -182,7 +183,8 @@ yfs_client::read(inum di, off_t off, size_t size, std::string& buf){
 
 int 
 yfs_client::unlink(inum di, const char* name){
-    //TODO implementieren ->  Remove a file name of the dir di
+    //TODO: implementieren ->  Remove a file name of the dir di
+	return IOERR;
 }
 
 int 
@@ -209,5 +211,8 @@ yfs_client::createDir(inum parent, const char* name, mode_t mode, inum& id)
 int 
 yfs_client::write(inum id, off_t off, size_t size, const char* buf) 
 {
-	return ec->write(id, off, size, buf);
+	//printf("yfs_client write enter\n");
+	int r = ec->write(id, off, size, buf);
+	//printf("yfs_client write exit\n");
+	return r;
 }

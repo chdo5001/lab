@@ -4,6 +4,7 @@
 #define extent_protocol_h
 
 #include "rpc.h"
+#include <stdio.h>
 
 class extent_protocol {
  public:
@@ -58,10 +59,11 @@ operator<<(marshall &m, extent_protocol::attr a)
   m << a.size;
   return m;
 }
-
+/*
 inline marshall & 
 operator<<(marshall &m, const long long l)
 {
+	printf("Marshall const long long");
 	m << l;
 	return m;
 }
@@ -69,7 +71,9 @@ operator<<(marshall &m, const long long l)
 inline unmarshall &
 operator>>(unmarshall &u, const long long &l)
 {
+	printf("Unmarshall const long long");
 	u >> l;
 	return u;
 }
+*/
 #endif 
