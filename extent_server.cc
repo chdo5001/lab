@@ -84,17 +84,37 @@ int extent_server::getattr(extent_protocol::extentid_t id, extent_protocol::attr
 	return extent_protocol::OK;
 }
 
-int extent_server::remove(extent_protocol::extentid_t id, int &)
+int extent_server::remove(extent_protocol::extentid_t pid, std::string &name)
 {
-	if (fileid_name_m.count(id) == 0) {
-		return extent_protocol::IOERR;
+	if (dirid_fmap_m.count(pid) == 0) {
+		// Directory containing file to remove not found
+		return extent_protocol::NOENT;
 	}
-	fileid_content_m.erase(id);
+	if (dirid_fmap_m[pid].count(name) == 0) {
+		// File/Directory to remove not found in directory pid
+		return extent_protocol::NOENT;
+	}
+	extent_protocol::extentid_t id = dirid_fmap_m[pid][name];
+	bool is_dir = isdir(id);
+	if (is_dir) {
+		if (dirid_fmap_m[id].size() != 0) {
+			// Directory to delete not empty.
+			return extent_protocol::IOERR;
+		}
+	}
+	if (!is_dir) {
+		fileid_content_m.erase(id);
+	}
 	fileid_attr_m.erase(id);
 	dirid_fmap_m[fileid_dir_m[id]].erase(fileid_name_m[id]);
 	fileid_name_m.erase(id);
 	fileid_dir_m.erase(id);
 	fileid_open_m.erase(id);
+	// Not sure if the mode is correctly stored atm. Better check if there's an entry for id
+	if (fileid_mode_m.count(id) != 0) {
+		fileid_mode_m.erase(id);
+	}
+	
 	return extent_protocol::OK;
 }
 

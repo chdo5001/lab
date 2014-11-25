@@ -38,20 +38,21 @@ extent_client::getattr(extent_protocol::extentid_t eid,
 }
 
 extent_protocol::status
-extent_client::put(extent_protocol::extentid_t eid, std::string buf)
+extent_client::put(extent_protocol::extentid_t eid, std::string name)
 {
   extent_protocol::status ret = extent_protocol::OK;
-  int r;
-  ret = cl->call(extent_protocol::put, eid, buf, r);
+  //int r;
+  ret = cl->call(extent_protocol::put, name);
   return ret;
 }
 
 extent_protocol::status
-extent_client::remove(extent_protocol::extentid_t eid)
+extent_client::remove(extent_protocol::extentid_t pid, const char* name)
 {
   extent_protocol::status ret = extent_protocol::OK;
-  int r;
-  ret = cl->call(extent_protocol::remove, eid, r);
+  //int r;
+  std::string str_name (name);
+  ret = cl->call(extent_protocol::remove, pid, str_name);
   return ret;
 }
 

@@ -184,8 +184,9 @@ yfs_client::read(inum di, off_t off, size_t size, std::string& buf){
 
 int 
 yfs_client::unlink(inum di, const char* name){
-    //TODO: implementieren ->  Remove a file name of the dir di
-	return IOERR;
+    extent_protocol::status ret;
+    ret = ec->remove(di, name);
+	return ret;
 }
 
 int 
