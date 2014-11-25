@@ -50,9 +50,10 @@ extent_protocol::status
 extent_client::remove(extent_protocol::extentid_t pid, const char* name)
 {
   extent_protocol::status ret = extent_protocol::OK;
-  //int r;
+  int r;
   std::string str_name (name);
-  ret = cl->call(extent_protocol::remove, pid, str_name);
+  printf("Ec str_name %s \n", str_name.c_str());
+  ret = cl->call(extent_protocol::remove, pid, str_name, r);
   return ret;
 }
 

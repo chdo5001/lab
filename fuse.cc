@@ -152,6 +152,7 @@ fuseserver_createhelper(fuse_ino_t parent, const char *name, mode_t mode, struct
 	//printf("fuse Create new file %s\n", name);
 	yfs_client::inum id;
 	if (!(yfs->createFile(parent, name, mode, id) == yfs_client::OK)) {
+		printf("fuse createFile failed\n");
 		return yfs_client::IOERR;
 	}
 	yfs_client::status ret = getattr(id, e->attr);
@@ -303,25 +304,29 @@ fuseserver_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
   
   ret = yfs->createDir(parent_inum,name,mode,inum);
   
-  if(ret == yfs_client::OK){
-      struct stat st;
-      e.ino = inum;
-      ret = getattr(inum, st);
-      if(ret == yfs_client::OK){
-          e.attr = st;
-          fuse_reply_entry(req, &e);
-      }
-  }else{
-      fuse_reply_err(req, ENOSYS);
-  }
-  
+	if(ret == yfs_client::OK){
+		struct stat st;
+		e.ino = inum;
+		printf("fuse getattr\n");
+		ret = getattr(inum, st);
+		printf("fuse  return val of getattr: %d\n", ret);
+		if(ret == yfs_client::OK){
+			e.attr = st;
+			fuse_reply_entry(req, &e);
+			return;
+		}
+	}
+ 	printf("fuse CreateDir failed\n");
+    fuse_reply_err(req, ENOSYS);
+	return;
+ }
 /*
 #if 0
   fuse_reply_entry(req, &e);
 #else
   fuse_reply_err(req, ENOSYS);
 #endif*/
-}
+
 
 void
 fuseserver_unlink(fuse_req_t req, fuse_ino_t parent, const char *name)

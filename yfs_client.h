@@ -11,6 +11,7 @@
 
   class yfs_client {
   extent_client *ec;
+  lock_client *lc;
  public:
 
   typedef unsigned long long inum;
@@ -42,14 +43,14 @@
 
   bool isfile(inum);
   bool isdir(inum);
-  inum ilookup(inum di, const char* name);
-  int readdir(inum di, std::list<dirent>& entries );
+  inum ilookup(inum id, const char* name);
+  int readdir(inum id, std::list<dirent>& entries );
   int createFile(inum parent, const char *name, mode_t mode, inum& id);
   int setattr(inum id, fileinfo &finfo);
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
-  int read(inum di,off_t off, size_t size, std::string &);
-  int unlink(inum di, const char *name);
+  int read(inum id,off_t off, size_t size, std::string &);
+  int unlink(inum parent, const char *name);
   int open(inum id);
   int createDir(inum parent, const char* name, mode_t mode, inum& id);
   int write(inum id, off_t off, size_t size, const char* buf);

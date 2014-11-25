@@ -22,6 +22,7 @@ extent_server::extent_server()
 	attr->mtime = (unsigned int)raw_time;
 	attr->atime = (unsigned int)raw_time;
 	fileid_attr_m[0x1] = *attr;
+	fileid_name_m[0x1] = "/";
 }
 
 // TODO: review changes of ctime/atime/mtime
@@ -46,13 +47,14 @@ int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 
 int extent_server::readdir(extent_protocol::extentid_t dirid, std::map<std::string, extent_protocol::extentid_t>& entries) {
 //printf("Extent_server readdir start\n");
-	if (dirid_fmap_m.count(dirid) == 0) {
-		return extent_protocol::IOERR;
+	if (fileid_name_m.count(dirid) == 0) {
+		return extent_protocol::NOENT;
 	}
 	//extent_protocol::dirent* entry;
 	std::map<std::string, extent_protocol::extentid_t>* fmap = &dirid_fmap_m[dirid];
 	std::map<std::string, extent_protocol::extentid_t>::iterator fmap_it = fmap->begin();
 	for (; fmap_it != fmap->end(); fmap_it++) {
+		//printf("es readdir %016llx %s\n", fmap_it->second, (fmap_it->first).c_str());
 		entries[fmap_it->first] = fmap_it->second;
 	}
 	//printf("Extent_server readdir exit\n");
@@ -84,21 +86,26 @@ int extent_server::getattr(extent_protocol::extentid_t id, extent_protocol::attr
 	return extent_protocol::OK;
 }
 
-int extent_server::remove(extent_protocol::extentid_t pid, std::string &name)
+int extent_server::remove(extent_protocol::extentid_t pid, std::string name, int&)
 {
+	printf("Trying to delete %s in  %016llx \n", name.c_str(), pid); 
 	if (dirid_fmap_m.count(pid) == 0) {
 		// Directory containing file to remove not found
+		printf("Dir not found\n");
 		return extent_protocol::NOENT;
 	}
 	if (dirid_fmap_m[pid].count(name) == 0) {
 		// File/Directory to remove not found in directory pid
+		printf("File not found in dir\n");
 		return extent_protocol::NOENT;
 	}
 	extent_protocol::extentid_t id = dirid_fmap_m[pid][name];
 	bool is_dir = isdir(id);
 	if (is_dir) {
+		printf("Trying to delete directory\n");
 		if (dirid_fmap_m[id].size() != 0) {
 			// Directory to delete not empty.
+			printf("Dir not empty\n");
 			return extent_protocol::IOERR;
 		}
 	}
@@ -138,8 +145,8 @@ int extent_server::createFile(extent_protocol::extentid_t parent, std::string na
 	// TODO: store the mode somewhere
     
         // TODO: does creating a dir also work (fuse::mkdir)? 
-	//printf("Create new file: %s", name.c_str());
-	//printf("in dir: %d\n", parent);
+	printf("Create new file: %s", name.c_str());
+	printf("in dir:  %016llx\n", parent);
 	int fd;
 	uint64_t num =0; 
 	if ((fd = ::open("/dev/random", O_RDONLY)) == -1)
@@ -161,7 +168,8 @@ int extent_server::createFile(extent_protocol::extentid_t parent, std::string na
 	//printf("New id = %d\n", id); 
 	// TODO: Move put() behind the condition
 	put(id, "", r);
-	if (dirid_fmap_m.count(parent) == 0) {
+	if (fileid_name_m.count(parent) == 0) {
+		printf("es CreateFile NOENT\n");
 		return extent_protocol::NOENT;
 	}
 	//std::string* str = new std::string(name);
@@ -189,6 +197,7 @@ extent_server::open(extent_protocol::extentid_t id, int&)
 int 
 extent_server::createDir(extent_protocol::extentid_t parent, std::string name, int&)
 {
+	printf("extent_server createDir enter\n");
 	int fd;
 	uint64_t num =0; 
 	if ((fd = ::open("/dev/random", O_RDONLY)) == -1)
@@ -216,9 +225,10 @@ extent_server::createDir(extent_protocol::extentid_t parent, std::string name, i
 	attr->atime = (unsigned int)raw_time;
 
 	//int r;
-	//printf("New id = %d\n", id); 
+	printf("New id %016llx\n", id); 
 	//put(id, "", r);
 	if (dirid_fmap_m.count(parent) == 0) {
+		printf("es createDir NOENT\n");
 		return extent_protocol::NOENT;
 	}
 	//std::string* str = new std::string(name);
@@ -229,6 +239,7 @@ extent_server::createDir(extent_protocol::extentid_t parent, std::string name, i
 	//fileid_open_m[id] = 0;
 	//printf("dirid_fmap[parent].size(): %d\n",(dirid_fmap_m[parent]).size()); 
 	//return extent_protocol::NOENT;
+	printf("extent_server createDir exit\n");
 	return extent_protocol::OK;
 }
 
