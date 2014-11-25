@@ -70,6 +70,7 @@
 #include <time.h>
 #include <netdb.h>
 
+
 #include "jsl_log.h"
 #include "gettime.h"
 
@@ -565,6 +566,15 @@ rpcs::add_reply(unsigned int clt_nonce, unsigned int xid,
 		char *b, int sz)
 {
 	ScopedLock rwl(&reply_window_m_);
+	std::list<reply_t>::iterator it = reply_window_[clt_nonce].begin();
+	for (;it !=  reply_window_[clt_nonce].end(); it++) {
+		if ((*it).xid == xid) {
+		//printf("Updating the reply for xid %d.\n", xid);
+		(*it).buf = b;
+		(*it).sz = sz;
+		break;
+		}
+	}
 }
 
 void
@@ -588,8 +598,84 @@ rpcs::checkduplicate_and_update(unsigned int clt_nonce, unsigned int xid,
 		unsigned int xid_rep, char **b, int *sz)
 {
 	ScopedLock rwl(&reply_window_m_);
+	// Delete received replies
+	std::list<reply_t>* reply_l = &reply_window_[clt_nonce];
+	//printf("Size of reply-list for clt %d ", clt_nonce);
+	//printf("is %d.\n", (*reply_l).size());
+	//printf("xid_rep %d\n", xid_rep);
+	//printf("xid %d\n", xid);
 
-	return NEW;
+	std::list<reply_t>::iterator it;
+
+	if (reply_l->size() != 0) {
+		//printf("Deleting deprecated replies.\n");
+		for (it = reply_l->begin(); it != reply_l->end(); it++) {
+			if (it->xid > xid_rep) {
+				break;
+			}
+			//printf("Deleting xid %d \n", (*it).xid);
+		}
+		reply_l->erase(reply_l->begin(), it);
+	}
+	//printf("Size is now: %d\n", reply_l->size());
+	
+	// Make sure there is an valid reply in the list for every (xid_rep+1 to xid).
+	// Fill with dummy elements where needed.
+	
+	// Fill list before first element
+	unsigned int first_xid;
+	if (reply_l->size() == 0) {
+		first_xid = xid;
+	} else {
+		first_xid = reply_l->front().xid-1;
+	}
+
+	while (xid_rep < first_xid) {
+		//printf("Adding dummy element %d at front\n", first_xid);
+		reply_l->push_front(*(new reply_t(first_xid)));
+		first_xid--;
+	}
+	
+	// Fill list behind last element
+	unsigned int last_xid = reply_l->back().xid;
+	while(xid > last_xid) {
+		last_xid++;
+		//printf("Adding dummy element %d at end\n", last_xid);
+		reply_l->push_back(last_xid);
+	}
+
+	//printf("Size after dummy is now: %d\n", reply_l->size());
+	
+	if ((*reply_l).front().xid > xid) {
+		//printf("Front of list is: %d. FORGOTTEN reply.\n", reply_l->front().xid);
+		return FORGOTTEN;
+	}
+	
+	//printf("Trying to find xid in list\n");
+	for (it = reply_l->begin(); it != reply_l->end(); it++) {
+		//printf("xid = %d\n", it->xid); 
+		if ((*it).xid == xid) {
+			if (it->cb_present) {
+				//printf("Found\n");
+				if ((*it).buf != NULL) {
+					//printf("DONE\n");
+					*b = (*it).buf;
+					*sz = (*it).sz;
+					return DONE;
+				} else {
+					//printf("INPROGRESS\n");
+					return INPROGRESS;
+				}
+			} else {
+				//printf("NEW\n");
+				it->cb_present = true;
+				return NEW;
+			}
+		}
+	}
+	printf("CRITICAL ERROR: Element not found in reply window.\n");
+	exit(1);
+
 }
 
 //rpc handler
