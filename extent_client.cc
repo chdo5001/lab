@@ -124,10 +124,7 @@ extent_client::write(extent_protocol::extentid_t id, off_t off, size_t size, con
 	printf("size: %d \n", size);
 	printf("string: %s \n", buf);
 	printf("Initialize string\n");*/
-	std::string test_buf (buf);
 	std::string str_buf (buf, size);
-	printf("Test the length of the strings:\n");
-	printf("%d   <->   %d\n", test_buf.length(), str_buf.length()); 
 	//printf("str_buf %s\n", str_buf.c_str());
 	//printf("Call\n");
 	r = cl->call(extent_protocol::write, id, offset, size, str_buf, r);
