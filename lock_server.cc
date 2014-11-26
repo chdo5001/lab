@@ -19,14 +19,14 @@ lock_server::~lock_server()
 }
 
 lock_protocol::status
-lock_server::stat(int clt, lock_protocol::lockid_t lid, int &r)
+lock_server::stat(int clid, lock_protocol::lockid_t lid, int &r)
 {
 	lock_protocol::status ret = lock_protocol::OK;
 	pthread_mutex_lock(&map_lock);
 	r = 0;
-	if (clt_lock_count.count(clt) != 0) {
-		if (clt_lock_count[clt].count(lid) != 0) {
-			r = clt_lock_count[clt][lid];
+	if (clt_lock_count.count(clid) != 0) {
+		if (clt_lock_count[clid].count(lid) != 0) {
+			r = clt_lock_count[clid][lid];
 		}
 	}
 	pthread_mutex_unlock(&map_lock);
@@ -34,23 +34,31 @@ lock_server::stat(int clt, lock_protocol::lockid_t lid, int &r)
 }
 
 lock_protocol::status
-lock_server::acquire(int clt, lock_protocol::lockid_t lid, int &r) {
+lock_server::acquire(int clid, unsigned int tid, lock_protocol::lockid_t lid, int &) {
 	lock_protocol::status ret = lock_protocol::OK;
 	pthread_mutex_lock(&map_lock);
 	// If the lid is in the map, the lock is hold by a client
+	if (lock_client.count(lid) != 0) {
+		// Check if it is hold by tid, acquired with clid
+		if (lock_client[lid] == clid && lock_thread[lid] == tid) {
+			pthread_mutex_unlock(&map_lock);
+			return ret;
+		}
+	}
 	while (lock_client.count(lid) != 0) {
 		pthread_cond_wait(&lock_free, &map_lock);
 	}
-	lock_client[lid] = clt;
+	lock_client[lid] = clid;
+	lock_thread[lid] = tid;
 	// Update acquire-count
-	if (clt_lock_count.count(clt) != 0) {
-		if (clt_lock_count[clt].count(lid) != 0) {
-			clt_lock_count[clt][lid]++;
+	if (clt_lock_count.count(clid) != 0) {
+		if (clt_lock_count[clid].count(lid) != 0) {
+			clt_lock_count[clid][lid]++;
 		} else {
-			clt_lock_count[clt][lid] = 1;
+			clt_lock_count[clid][lid] = 1;
 			}
 	} else {
-		clt_lock_count[clt][lid] = 1;
+		clt_lock_count[clid][lid] = 1;
 	}
 	pthread_mutex_unlock(&map_lock);
   
@@ -58,13 +66,13 @@ lock_server::acquire(int clt, lock_protocol::lockid_t lid, int &r) {
 }
 
 lock_protocol::status
-lock_server::release(int clt, lock_protocol::lockid_t lid, int &r) {
+lock_server::release(int clid, unsigned int tid, lock_protocol::lockid_t lid, int &) {
   lock_protocol::status ret = lock_protocol::OK;
 	pthread_mutex_lock(&map_lock);
 	// If the lid is in the map, the lock is hold by a client
 	if (lock_client.count(lid) != 0) {
 		// if a client tries to release a lock it does not hold just return
-		if (lock_client[lid] != clt) {
+		if (lock_client[lid] != clid || lock_thread[lid] != tid) {
 			pthread_mutex_unlock(&map_lock);
 			return ret;
 		}
@@ -73,6 +81,7 @@ lock_server::release(int clt, lock_protocol::lockid_t lid, int &r) {
 		return ret;
 	}
 	lock_client.erase(lid);
+	lock_thread.erase(lid);
 	pthread_mutex_unlock(&map_lock);
 	pthread_cond_signal(&lock_free);
 	return ret;

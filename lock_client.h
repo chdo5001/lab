@@ -14,12 +14,6 @@
 
 // Client interface to the lock server
 class lock_client {
-  private:
-	std::map<int, unsigned int> lock_tid;
-	// Mutex protecting the above map
-	pthread_mutex_t map_lock;
-	// Condition variable clients wait on for a lock to be released
-	pthread_cond_t lock_free;
   protected:
 	rpcc *cl;
   public:

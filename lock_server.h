@@ -17,6 +17,8 @@ class lock_server {
  private:
 	// Maps locks to the client holding it
 	std::map<lock_protocol::lockid_t, int> lock_client;
+	// Maps locks to the thread holding it
+	std::map<lock_protocol::lockid_t, unsigned int> lock_thread;
 	// Tracks how often a client has acquired a specific lock
 	std::map<int, std::map<lock_protocol::lockid_t, int> > clt_lock_count;
 	// Mutex protecting the above maps
@@ -30,9 +32,9 @@ class lock_server {
  public:
   lock_server();
   ~lock_server();
-  lock_protocol::status stat(int clt, lock_protocol::lockid_t lid, int &);
-  lock_protocol::status acquire(int clt, lock_protocol::lockid_t lid, int &);
-  lock_protocol::status release(int clt, lock_protocol::lockid_t lid, int &);
+  lock_protocol::status stat(int clid, lock_protocol::lockid_t lid, int &r);
+  lock_protocol::status acquire(int clid, unsigned int tid, lock_protocol::lockid_t lid, int &);
+  lock_protocol::status release(int clid, unsigned int tid, lock_protocol::lockid_t lid, int &);
 };
 
 #endif 

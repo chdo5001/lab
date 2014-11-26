@@ -175,6 +175,14 @@ yfs_client::createFile(inum parent, const char *name, mode_t mode, inum& id) {
 		lc->release(parent);
 		goto release;
 	}
+
+	//modify mtime, atime of parent
+	extent_protocol::attr attr;
+	ec->getattr(parent,attr);
+	attr.atime = time(NULL);
+	attr.mtime = time(NULL);
+	ec->setAttr(parent, attr);
+
 	lc->release(parent);
 	printf("Call lookup\n");
 	id = ilookup(parent, name);
@@ -251,6 +259,14 @@ yfs_client::unlink(inum parent, const char* name)
 		goto release;
 	}
     ret = ec->remove(parent, name);
+
+    //modify mtime, atime of parent
+	extent_protocol::attr attr;
+	ec->getattr(parent,attr);
+	attr.atime = time(NULL);
+	attr.mtime = time(NULL);
+	ec->setAttr(parent, attr);
+
 	if(ret != extent_protocol::OK){
         goto release;
     }
@@ -301,8 +317,9 @@ yfs_client::createDir(inum parent, const char* name, mode_t mode, inum& id)
 	// TODO: add rollback if setMode fails (see createFile)?
 	// PS: Looking into fuse::getattr(), I think we can ignore the mode completely
 //	ret = ec->setMode(id, mode);
-	lc->release(parent);
 	id = ilookup(parent, name);
+	lc->release(parent);
+	//id = ilookup(parent, name);
   release:
 	return ret; 
 }
