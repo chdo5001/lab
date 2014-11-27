@@ -149,7 +149,7 @@ int extent_server::createFile(extent_protocol::extentid_t parent, std::string na
 	printf("in dir:  %016llx\n", parent);
 	int fd;
 	uint64_t num =0; 
-	if ((fd = ::open("/dev/random", O_RDONLY)) == -1)
+	if ((fd = ::open("/dev/urandom", O_RDONLY)) == -1)
 	{
 		exit(2);
 	}
@@ -200,7 +200,7 @@ extent_server::createDir(extent_protocol::extentid_t parent, std::string name, i
 	printf("extent_server createDir enter\n");
 	int fd;
 	uint64_t num =0; 
-	if ((fd = ::open("/dev/random", O_RDONLY)) == -1)
+	if ((fd = ::open("/dev/urandom", O_RDONLY)) == -1)
 	{
 		exit(2);
 	}
