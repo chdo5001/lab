@@ -366,6 +366,8 @@ fuseserver_statfs(fuse_req_t req)
 
 struct fuse_lowlevel_ops fuseserver_oper;
 
+
+
 int
 main(int argc, char *argv[])
 {
@@ -459,3 +461,4 @@ main(int argc, char *argv[])
 
   return err ? 1 : 0;
 }
+
