@@ -10,10 +10,17 @@
 
 class lock_server_cache {
  public:
+
   lock_server_cache();
-  lock_protocol::status stat(lock_protocol::lockid_t, int &);
+  //virtual lock_protocol::status stat(lock_protocol::lockid_t, int &){};
+  //virtual lock_protocol::status acquire(lock_protocol::lockid_t, int &){};
+ // virtual lock_protocol::status release(lock_protocol::lockid_t, int &){};
+  virtual lock_protocol::status subscribe(lock_protocol::lockid_t, int &){return lock_protocol::OK;};
   void revoker();
   void retryer();
+  
+
+	
 };
 
 #endif
