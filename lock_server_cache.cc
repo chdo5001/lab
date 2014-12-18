@@ -31,6 +31,21 @@ lock_server_cache::lock_server_cache()
   assert (r == 0);
 }
 
+lock_protocol::status
+lock_server_chache::subscribe(int clid, std::string host, int &)
+{
+	sockaddr_in dstsock;
+	make_sockaddr(dst.c_str(), &dstsock);
+	cl = new rpcc(dstsock);
+	if (cl->bind() < 0) {
+		printf("lock_server: call bind\n");
+	}
+	m_clid_rpcc[clid] = cl;
+	return lock_protocol::OK;
+}
+
+
+
 void
 lock_server_cache::revoker()
 {
