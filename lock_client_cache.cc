@@ -60,7 +60,7 @@ lock_client_cache::releaser()
   // send a release RPC.
 	rlock_protocol::lockid_t lid;
 	int r;
-	bool retry;
+	int retry;
 	while (true) {
 		pthread_mutex_lock(&map_lock);
 		while (l_released.empty()) {
@@ -69,12 +69,12 @@ lock_client_cache::releaser()
 		lid = l_released.front();
 		l_released.pop_front();
 		if (m_lock_waitlist[lid].empty()) {
-			retry = false;
+			retry = 0;
 		} else {
-			retry = true;
+			retry = 1;
 		}
 		pthread_mutex_unlock(&map_lock);
-		// if retry == true, the server notifies this client when lock lid is free again
+		// if retry == 1, the server notifies this client when lock lid is free again
 		cl->call(lock_protocol::release, cl->id(), lid, retry, r);
 		pthread_mutex_lock(&map_lock);
 		m_lock_status.erase(lid);
@@ -97,12 +97,14 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 		assert(m_lock_waitlist[lid].empty()); 
 		pthread_cond_t* cond = new pthread_cond_t();
 		pthread_cond_init(cond, NULL);
+		// The acquiring thread should be the first in the waitlist. I think this is not necessary, but just fair.
 		m_lock_waitlist[lid].push_front(cond);
 		seqid++;
 		m_lock_seqid[lid] = seqid;
 		pthread_mutex_unlock(&map_lock);
 		ret = cl->call(lock_protocol::acquire, cl->id(), lid, seqid, r);
 		if (ret == lock_protocol::OK) {
+			// Successful
 			pthread_mutex_lock(&map_lock);
 			assert(m_lock_waitlist[lid].front() == cond);
 			m_lock_waitlist[lid].pop_front();
@@ -119,6 +121,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 			return lock_protocol::OK;
 		}
 		if (ret == lock_protocol::RETRY) {
+			// Unsuccessful. Retry later
 			pthread_mutex_lock(&map_lock);
 			while(m_lock_status[lid] != FREE) {
 				pthread_cond_wait(cond, &map_lock);

@@ -87,8 +87,9 @@ class lock_client_cache : public lock_client {
 	std::map<rlock_protocol::lockid_t, lock_status> m_lock_status;
 	// Maps locks to a list of threads waiting to acquire it
 	std::map<rlock_protocol::lockid_t, std::list<pthread_cond_t*> > m_lock_waitlist;
-	// Mutex protecting the above maps
+	// Maps locks to sequence number of rpc that acquired it
 	std::map<rlock_protocol::lockid_t, rlock_protocol::seqid_t> m_lock_seqid;
+	// Mutex protecting shared data structures of the class
 	pthread_mutex_t map_lock;
 	// Condition variable releaser() waits on for revoked locks to be freed
 	pthread_cond_t lock_free;
