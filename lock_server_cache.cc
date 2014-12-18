@@ -39,6 +39,9 @@ lock_server_chache::subscribe(int clid, std::string host, int &)
 	cl = new rpcc(dstsock);
 	if (cl->bind() < 0) {
 		printf("lock_server: call bind\n");
+	} else {
+		printf("lock_server: bind failed\n);
+		exit(0);
 	}
 	m_clid_rpcc[clid] = cl;
 	return lock_protocol::OK;
