@@ -13,7 +13,7 @@ class lock_server_cache {
   ~lock_server_cache();
   lock_server_cache();
   virtual lock_protocol::status stat(int clid, lock_protocol::lockid_t lid, int &);
-  virtual lock_protocol::status acquire(int clid, lock_protocol::lockid_t lid, int &);
+  virtual lock_protocol::status acquire(int clid, lock_protocol::lockid_t lid, lock_protocol::seqid_t seqid, int &);
   virtual lock_protocol::status release(int clid, lock_protocol::lockid_t lid, int retry, int&);
   virtual lock_protocol::status subscribe(int clid, std::string host, int &);
   void revoker();
@@ -30,7 +30,8 @@ class lock_server_cache {
 	std::list<lock_protocol::lockid_t> l_revoke;
 	// Keeps track of how many times a lock was acquired by a specific client
 	std::map<lock_protocol::lockid_t, std::map<int, int> > m_lock_clid_count;
-	// Stores the lock ids that shall be revoked by the revoker thread
+	// Maps the lock to the seqid of the message that acquired it
+	std::map<lock_protocol::lockid_t, rlock_protocol::seqid_t> m_lock_seqid;
 	// Mutex protecting shared data structures of the class
 	pthread_mutex_t lock;
 	// Conditions on which the revoker and retryer wait
