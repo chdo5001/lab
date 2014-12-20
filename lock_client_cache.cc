@@ -72,7 +72,7 @@ lock_client_cache::releaser()
 			gettimeofday(&now, NULL);
 			timeout.tv_sec = now.tv_sec;
 			timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
-			ret = pthread_cond_timedwait(&lock_free, &map_lock, &timeout);
+			pthread_cond_timedwait(&lock_free, &map_lock, &timeout);
 			//printf("Releaser on client woke up\n");
 		}
 		//printf("Trying to release locks on the server\n");
@@ -116,7 +116,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
   acqu:
 	// The lock is not hold by the client. Try to acquire it.
 	if (m_lock_status[lid] == NONE) {
-		printf("Lock %016llx not assigned. Acquire it for client %d thread %016lx\n", lid, cl->id(), pthread_self());
+		//printf("Lock %016llx not assigned. Acquire it for client %d thread %016lx\n", lid, cl->id(), pthread_self());
 		//m_lock_waitlist[lid].push_front(cond);
 		seqid++;
 		pthread_cond_t* cond = new pthread_cond_t();
@@ -128,7 +128,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 			ret = cl->call(lock_protocol::acquire, cl->id(), lid, seqid, r);
 			if (ret == lock_protocol::OK) {
 				// Successful
-				printf("Sucessfully acquired lock %016llx for client %d %016lx\n", lid, cl->id(), pthread_self());
+				//printf("Sucessfully acquired lock %016llx for client %d %016lx\n", lid, cl->id(), pthread_self());
 				pthread_mutex_lock(&map_lock);
 				//assert(m_lock_waitlist[lid].front() == cond);
 				// Don't have to wait. Condition is not needed anymore
@@ -160,7 +160,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 					continue;
 				}
 				m_lock_waitlist[lid]->push_front(cond);
-				printf("Not acquired lock %016llx for client %d thread %016lx. Retry later\n", lid, cl->id(), pthread_self());
+				//printf("Not acquired lock %016llx for client %d thread %016lx. Retry later\n", lid, cl->id(), pthread_self());
 				//printf("client %d thread %016lx waits at cond %p\n", cl->id(), pthread_self(), &cond);
 				m_cond_waiting[cond] = true;
 				//pthread_cond_signal(cond);
@@ -174,7 +174,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 	// If the calling thread already holds this lock just return
 	if (m_lock_thread[lid] == pthread_self()) {
 		if (pthread_equal(pthread_self(), m_lock_thread[lid]) != 0) {
-			printf("Lock %016llx already hold by thread %016lx on client %d\n", lid, pthread_self(), cl->id());
+			//printf("Lock %016llx already hold by thread %016lx on client %d\n", lid, pthread_self(), cl->id());
 			pthread_mutex_unlock(&map_lock);
 			return ret;
 		}
@@ -182,7 +182,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 	
 	// If the lock is FREE, assign it to the calling thread
 	if (m_lock_status[lid] == FREE) {
-		printf("Lock %016llx is FREE. Assign it to thread %016lx on client %d\n", lid, pthread_self(), cl->id());
+		//printf("Lock %016llx is FREE. Assign it to thread %016lx on client %d\n", lid, pthread_self(), cl->id());
 		m_lock_status[lid] = LOCKED;
 		m_lock_thread[lid] = pthread_self();
 		pthread_mutex_unlock(&map_lock);
@@ -191,7 +191,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 	
 	// If the client holds the lock, but it is locked/releasing/acquiring, wait for it
 	if (m_lock_status[lid] > 1) {
-		printf("Thread %016lx : Client %d has lock %016llx but its l/r/a. Have to wait\n", pthread_self(), cl->id(), lid);
+		//printf("Thread %016lx : Client %d has lock %016llx but its l/r/a. Have to wait\n", pthread_self(), cl->id(), lid);
 		pthread_cond_t* cond = new pthread_cond_t();
 		pthread_cond_init(cond, NULL);
 		m_lock_waitlist[lid]->push_back(cond);
@@ -212,7 +212,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 lock_protocol::status
 lock_client_cache::release(rlock_protocol::lockid_t lid)
 {
-	printf("Free lock %016llx by thread %016lx on client %d\n", lid, pthread_self(), cl->id());
+	//printf("Free lock %016llx by thread %016lx on client %d\n", lid, pthread_self(), cl->id());
 	lock_protocol::status ret = lock_protocol::OK;
 	pthread_mutex_lock(&map_lock);
 	// Does this thread really holds the lock?
@@ -223,17 +223,7 @@ lock_client_cache::release(rlock_protocol::lockid_t lid)
 	}
 	m_lock_thread[lid] = -1;
 	m_lock_retry[lid] = false;
-	/*
-	bool contains = false;
-	//printf("Comparing l_revoke\n");
-	for (std::list<rlock_protocol::lockid_t>::iterator it = l_revoke.begin(); it != l_revoke.end(); it++) {
-		//printf("l_revoke: compare %016llx = %016llx\n", *it, lid);
-		if (*it == lid) {
-			//printf("Found\n");
-			contains = true;
-			break;
-		}
-	}*/
+	
 	if (listContains<lock_protocol::lockid_t>(l_revoke, lid)) {
 		//printf("Have to release this lock on server. client %d thread %016lx\n", cl->id(), pthread_self());
 		m_lock_status[lid] = RELEASING;
@@ -271,28 +261,25 @@ lock_client_cache::listContains(std::list<T> l, T v)
 lock_protocol::status 
 lock_client_cache::revoke(int clid, rlock_protocol::lockid_t lid, rlock_protocol::seqid_t seqid, int&) 
 {
-	printf("Revoke called for lock %016llx on client %d\n", lid, clid);
+	//printf("Revoke called for lock %016llx on client %d\n", lid, clid);
 	struct timeval now;
 	struct timespec timeout;
 	lock_protocol::status ret = lock_protocol::OK;
 	pthread_mutex_lock(&map_lock);
 	while (m_lock_status[lid] == ACQUIRING) {
-		printf("thread %016lx on client %d waits acquire to finish in revoke\n", pthread_self(), clid);
+		//printf("thread %016lx on client %d waits acquire to finish in revoke\n", pthread_self(), clid);
 		gettimeofday(&now, NULL);
 		timeout.tv_sec = now.tv_sec;
 		timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
 		pthread_cond_timedwait(&revoke_cond, &map_lock, &timeout);
-		if (ret == ETIMEDOUT) {
-			printf("revoke woke up by timeout\n");
-		}
 	}
-	printf("thread %016lx on client %d no acquire running for lock %016llx\n", pthread_self(), clid, lid);
+	//printf("thread %016lx on client %d no acquire running for lock %016llx\n", pthread_self(), clid, lid);
 	
 	if (m_lock_status[lid] == NONE || m_lock_status[lid] == RELEASING) {
-		printf("lock already has been released or is releasing on client %d\n", clid);
+		//printf("lock already has been released or is releasing on client %d\n", clid);
 		return ret;
 	}
-	// printf("Compare seqids: %016llx = %016llx\n", m_lock_seqid[lid], seqid);
+	
 	// Only revoke if seqids match. No match -> Depricated or early revoke msg
 	if (m_lock_seqid[lid] == seqid) {
 		if (m_lock_status[lid] == FREE) {
@@ -303,10 +290,9 @@ lock_client_cache::revoke(int clid, rlock_protocol::lockid_t lid, rlock_protocol
 		} else {
 			l_revoke.push_back(lid);
 		}
-	} //else {
-		//printf("No match\n");
-	//}
-	// Early revoke. This should not be possible due to the above condition
+	} 
+	// Early revoke. Actually, this should not be possible due to the above condition
+	// TODO: Actually, we can remove this m_waiting_revoke-thing completely...
 	if (m_lock_seqid[lid] < seqid) {
 		assert(false);
 		m_waiting_revoke[lid] = seqid;
@@ -320,9 +306,12 @@ lock_client_cache::retry(int clid, rlock_protocol::lockid_t lid, int&)
 {
 	struct timeval now;
 	struct timespec timeout;
-	printf("Retry called for lock %016llx on client %d\n", lid, clid);
+	//printf("Retry called for lock %016llx on client %d\n", lid, clid);
 	lock_protocol::status ret = lock_protocol::OK;
 	pthread_mutex_lock(&map_lock);
+	// Assume: thread1 waits for reply of acquire rpc. thread2 wants lock and goes in waitlist. server sends retry rpc.
+	// Now, the thread in the waitlist executed, but we want to signal the acquiring thread to retry immediately.
+	// Therefore the (m_lock_status[lid] == ACQUIRING) is needed in the condition
 	if ( m_lock_waitlist[lid]->empty() || (m_lock_status[lid] == ACQUIRING) ) {
 		m_lock_retry[lid] = true;
 	} else {

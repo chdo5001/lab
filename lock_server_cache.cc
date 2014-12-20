@@ -75,7 +75,7 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 		m_lock_clid[lid] = -1;
 	}
 	assert(m_clid_rpcc.count(clid) != 0);
-	printf("lock_server: Try to acquire lock %016llx for client %d\n", lid, clid);
+	//printf("lock_server: Try to acquire lock %016llx for client %d\n", lid, clid);
 	int ret = lock_protocol::OK;
 	pthread_mutex_lock(&lock);
 	
@@ -91,7 +91,7 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 		m_lock_clid[lid] = clid;
 		m_lock_seqid[lid] = seqid;
 		m_lock_status[lid] = LOCKED;
-		printf("Lock %016llx granted to client %d\n",lid, clid);
+		//printf("Lock %016llx granted to client %d\n",lid, clid);
 		// Update acquired-count
 		if (m_lock_clid_count[lid].count(clid) == 0) {
 			m_lock_clid_count[lid][clid] = 1; 
@@ -123,7 +123,7 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 			//printf("Add %016llx to revokelist\n", lid);
 			l_revoke.push_back(info);
 		}
-		printf("Lock %016llx NOT granted to client %d.\n",lid, clid);
+		//printf("Lock %016llx NOT granted to client %d.\n",lid, clid);
 		m_lock_retrylist[lid]->push_back(clid);
 		ret = lock_protocol::RETRY;
 		pthread_cond_signal(&revoke_cond);
@@ -147,10 +147,10 @@ lock_server_cache::release(int clid, lock_protocol::lockid_t lid, int retry, int
 	if (m_lock_clid[lid] != clid) {
 		// This client does not hold the lock it wants to release. Error...
 		pthread_mutex_unlock(&lock);
-		printf("lock_server:  Client %d does not hold the lock %016llx.\n", clid, lid);
+		//printf("lock_server:  Client %d does not hold the lock %016llx.\n", clid, lid);
 		return lock_protocol::RPCERR;
 	}
-	printf("Lock %016llx released by client %d\n", lid, clid);
+	//printf("Lock %016llx released by client %d\n", lid, clid);
 	m_lock_clid[lid] = -1;
 	m_lock_seqid[lid] = -1;
 	m_lock_status[lid] = FREE;
@@ -198,7 +198,7 @@ lock_server_cache::revoker()
 			gettimeofday(&now, NULL);
 			timeout.tv_sec = now.tv_sec;
 			timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
-			ret = pthread_cond_timedwait(&revoke_cond, &lock, &timeout);
+			pthread_cond_timedwait(&revoke_cond, &lock, &timeout);
 			//printf("revoker woke up\n");
 		}
 		info = l_revoke.front();
@@ -218,7 +218,7 @@ lock_server_cache::revoker()
 			continue;
 		}
 		pthread_mutex_unlock(&lock);
-		printf("Revoking %016llx on client %d and seqid %016llx\n", lid, clid, seqid);
+		//printf("Revoking %016llx on client %d and seqid %016llx\n", lid, clid, seqid);
 		m_clid_rpcc[clid]->call(rlock_protocol::revoke, clid, lid, seqid, r);
 	}
 }
@@ -242,7 +242,7 @@ lock_server_cache::retryer()
 			gettimeofday(&now, NULL);
 			timeout.tv_sec = now.tv_sec;
 			timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
-			ret = pthread_cond_timedwait(&retry_cond, &lock, &timeout);
+			pthread_cond_timedwait(&retry_cond, &lock, &timeout);
 			findFreeLocks(free_locks);
 		}
 		
@@ -261,7 +261,7 @@ lock_server_cache::retryer()
 		for (it = m.begin(); it != m.end(); it++) {
 			lid = it->first;
 			clid = it->second;
-			printf("Calling retry for lock %016llx on client %d\n", lid, clid);
+			//printf("Calling retry for lock %016llx on client %d\n", lid, clid);
 			//ret = 
 			m_clid_rpcc[clid]->call(rlock_protocol::retry, clid, lid, r);
 		}
