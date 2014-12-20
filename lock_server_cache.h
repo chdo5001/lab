@@ -5,6 +5,8 @@
 #include "lock_protocol.h"
 #include "rpc.h"
 #include "lock_server.h"
+#include <sys/time.h>
+#include <unistd.h>
 
 	struct revoke_info {
 		lock_protocol::lockid_t lid;
@@ -25,7 +27,7 @@ class lock_server_cache {
   void retryer();
     
   private:
-	std::map<lock_protocol::status, lock_status> m_lock_status;
+	std::map<lock_protocol::lockid_t, lock_status> m_lock_status;
 	std::map<int, rpcc*> m_clid_rpcc;
 	// Maps locks to the client holding it
 	std::map<lock_protocol::lockid_t, int> m_lock_clid;
@@ -42,9 +44,10 @@ class lock_server_cache {
 	// Conditions on which the revoker and retryer wait
 	pthread_cond_t revoke_cond;
 	pthread_cond_t retry_cond;
-	bool retryer_ready;
-	bool revoker_ready;
-	std::list<lock_protocol::lockid_t> l_released;
+	//bool retryer_ready;
+	//bool revoker_ready;
+	//std::list<lock_protocol::lockid_t> l_released;
+	void findFreeLocks(std::list<lock_protocol::lockid_t>& l_free);
 };
 
 #endif

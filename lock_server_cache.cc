@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
+#define COND_TIMEOUT 100000
+
 static void *
 revokethread(void *x)
 {
@@ -24,8 +26,6 @@ retrythread(void *x)
 
 lock_server_cache::lock_server_cache()
 {
-  revoker_ready = false;
-  retryer_ready = false;
   pthread_t th;
   int r = pthread_create(&th, NULL, &revokethread, (void *) this);
   assert (r == 0);
@@ -68,11 +68,14 @@ lock_protocol::status
 lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol::seqid_t seqid, int &) 
 {
 	if (m_lock_status.count(lid) == 0) {
-		// Never saw this lock before. Create a status map entry for it
+		// Never saw this lock before. Create a map entry for it
 		m_lock_status[lid] = FREE;
+		m_lock_retrylist[lid] = new std::list<int>();
+		m_lock_seqid[lid] = -1;
+		m_lock_clid[lid] = -1;
 	}
 	assert(m_clid_rpcc.count(clid) != 0);
-	//printf("lock_server: Try to acquire lock %016llx for client %d\n", lid, clid);
+	printf("lock_server: Try to acquire lock %016llx for client %d\n", lid, clid);
 	int ret = lock_protocol::OK;
 	pthread_mutex_lock(&lock);
 	if (m_clid_rpcc.count(clid) == 0) {
@@ -86,7 +89,7 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 		m_lock_clid[lid] = clid;
 		m_lock_seqid[lid] = seqid;
 		m_lock_status[lid] = LOCKED;
-		//printf("Lock %016llx granted to client %d\n",lid, clid);
+		printf("Lock %016llx granted to client %d\n",lid, clid);
 		// Update acquired-count
 		if (m_lock_clid_count[lid].count(clid) == 0) {
 			m_lock_clid_count[lid][clid] = 1; 
@@ -94,7 +97,7 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 			m_lock_clid_count[lid][clid]++; 
 		}
 		// If there are other clients already waiting for the lock, immediately revoke it again
-		if (m_lock_retrylist.count(lid) != 0) {
+		if (!m_lock_retrylist[lid]->empty()) {
 			if (m_lock_status[lid] != REVOKING) {
 				m_lock_status[lid] = REVOKING;
 				revoke_info info;
@@ -104,23 +107,10 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 				//printf("Add %016llx to revokelist immediately\n", lid);
 				l_revoke.push_back(info);
 			}
-			if (!revoker_ready) {
-				pthread_cond_wait(&revoke_cond, &lock);
-			}
 			pthread_cond_signal(&revoke_cond);
 		}
 	} else {
 		// Lock is assigned to another client. Revoke it
-		/*
-		bool contains = false;
-		for (std::list<lock_protocol::lockid_t>::iterator it = l_revoke.begin(); it != l_revoke.end(); it++) {
-			if (*it == lid) {
-				contains = true;
-			}
-		}
-		if (!contains) {
-			l_revoke.push_back(lid);
-		}*/
 		// Sending one revoke-request is sufficient
 		if (m_lock_status[lid] != REVOKING) {
 			m_lock_status[lid] = REVOKING;
@@ -131,16 +121,9 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 			//printf("Add %016llx to revokelist\n", lid);
 			l_revoke.push_back(info);
 		}
-		if (m_lock_retrylist.count(lid) == 0) {
-			std::list<int>* l = new std::list<int>();
-			m_lock_retrylist[lid] = l;
-		}	
-		//printf("Lock %016llx NOT granted to client %d. Retry\n",lid, clid);
+		printf("Lock %016llx NOT granted to client %d.\n",lid, clid);
 		m_lock_retrylist[lid]->push_back(clid);
 		ret = lock_protocol::RETRY;
-		if (!revoker_ready) {
-			pthread_cond_wait(&revoke_cond, &lock);
-		}
 		pthread_cond_signal(&revoke_cond);
 	}
 	pthread_mutex_unlock(&lock);
@@ -149,39 +132,31 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 
 lock_protocol::status
 lock_server_cache::release(int clid, lock_protocol::lockid_t lid, int retry, int&) {
+	// if retry == true, the server notifies the client when lock lid is free again
 	assert(m_clid_rpcc.count(clid) != 0);
 	int ret = lock_protocol::OK;
 	pthread_mutex_lock(&lock);
 	if (m_clid_rpcc.count(clid) == 0) {
 		// Client has not subscribed yet
 		pthread_mutex_unlock(&lock);
-		//printf("lock_server:  Client %d has not subscribed yet.\n", clid);
+		printf("lock_server:  Client %d has not subscribed yet.\n", clid);
 		return lock_protocol::RPCERR;
 	}
 	if (m_lock_clid[lid] != clid) {
 		// This client does not hold the lock it wants to release. Error...
 		pthread_mutex_unlock(&lock);
-		//printf("lock_server:  Client %d does not hold the lock %016llx.\n", clid, lid);
+		printf("lock_server:  Client %d does not hold the lock %016llx.\n", clid, lid);
 		return lock_protocol::RPCERR;
 	}
 	printf("Lock %016llx released by client %d\n", lid, clid);
-	m_lock_clid.erase(lid);
-	m_lock_seqid.erase(lid);
+	m_lock_clid[lid] = -1;
+	m_lock_seqid[lid] = -1;
 	m_lock_status[lid] = FREE;
 	if (retry == 1) 
 	{
 		// The releasing client wants the lock again
-		if (m_lock_retrylist.count(lid) == 0) {
-			std::list<int>* l = new std::list<int>();
-			m_lock_retrylist[lid] = l;
-		}	
-		//printf("Add to retrylist: lock %016llx on client %d\n",lid, clid);
 		m_lock_retrylist[lid]->push_back(clid);
 	}
-	while (!retryer_ready) {
-		pthread_cond_wait(&retry_cond, &lock);
-	}
-	l_released.push_back(lid);
 	pthread_cond_signal(&retry_cond);
 	pthread_mutex_unlock(&lock);
 	return ret;
@@ -205,21 +180,26 @@ lock_server_cache::stat(int clid, lock_protocol::lockid_t lid, int& r)
 void
 lock_server_cache::revoker()
 {
-	//rlock_protocol::lockid_t lid;
 	int clid;
 	//int ret;
 	revoke_info info;
 	lock_protocol::lockid_t lid;
 	rlock_protocol::seqid_t seqid;
 	int r;
+	int ret;
+	struct timeval now;
+	struct timespec timeout;
 	while (true) {
 		pthread_mutex_lock(&lock);
 		while (l_revoke.empty()) {
 			//printf("l_revoke is empty\n");
-			revoker_ready = true;
-			pthread_cond_signal(&revoke_cond);
-			pthread_cond_wait(&revoke_cond, &lock);
-			revoker_ready = false;
+			gettimeofday(&now, NULL);
+			timeout.tv_sec = now.tv_sec;
+			timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
+			ret = pthread_cond_timedwait(&revoke_cond, &lock, &timeout);
+			if (ret == ETIMEDOUT) {
+				printf("revoker woke up by timeout\n");
+			}
 			//printf("revoker woke up\n");
 		}
 		info = l_revoke.front();
@@ -227,29 +207,21 @@ lock_server_cache::revoker()
 		lid = info.lid;
 		clid = info.clid;
 		seqid = info.seqid;
-		// Check if the data of the lock has changed meanwhile
-		if (m_lock_clid.count(lid) == 0) {
+		// Check if the data of the lock has changed (e.g. it may be released and reacquired by another client meanwhile)
+		if (m_lock_clid[lid] == FREE) {
 			//printf("Can't revoke lock. Noone has it.\n");
 			pthread_mutex_unlock(&lock);
 			continue;
 		}
 		if ( (m_lock_clid[lid] != clid) || (m_lock_seqid[lid] != seqid) ) {
+			// Data of the lock has changed. Depricated revoke request
 			pthread_mutex_unlock(&lock);
 			continue;
 		}
 		pthread_mutex_unlock(&lock);
-		//printf("Revoking %016llx on client %d and seqid %016llx\n", lid, clid, seqid);
-		// if retry == true, the server notifies the client when lock lid is free again
-		//ret = 
+		printf("Revoking %016llx on client %d and seqid %016llx\n", lid, clid, seqid);
 		m_clid_rpcc[clid]->call(rlock_protocol::revoke, clid, lid, seqid, r);
-		//printf("revoke ret = %d\n", ret);
-		//pthread_mutex_lock(&lock);
-		//pthread_mutex_unlock(&lock);
 	}
-  // This method should be a continuous loop, that sends revoke
-  // messages to lock holders whenever another client wants the
-  // same lock
-
 }
 
 
@@ -259,32 +231,32 @@ lock_server_cache::retryer()
 	int r;
 	lock_protocol::lockid_t lid;
 	int clid;
-	//int ret;
-	//bool free = false;
-	std::list<int>* l = NULL;
+		struct timeval now;
+	struct timespec timeout;
+	int ret;
+	std::map<lock_protocol::lockid_t, int> m;
+	std::list<lock_protocol::lockid_t> free_locks;
 	std::map<lock_protocol::lockid_t, int>::iterator it;
 	while (true) {
 		pthread_mutex_lock(&lock);
-		//while (!l_released.empty()) {
-			//printf("l_retry is empty.\n");
-			retryer_ready = true;
-			pthread_cond_signal(&retry_cond);
-			pthread_cond_wait(&retry_cond, &lock);
-			retryer_ready = false;
-		//}
-		std::map<lock_protocol::lockid_t, int> m;
+		while (free_locks.empty()) {
+			gettimeofday(&now, NULL);
+			timeout.tv_sec = now.tv_sec;
+			timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
+			ret = pthread_cond_timedwait(&retry_cond, &lock, &timeout);
+			if (ret == ETIMEDOUT) {
+				printf("retryer woke up by timeout\n");
+			}
+			findFreeLocks(free_locks);
+		}
 		
-		while(!l_released.empty()) {
-			lid = l_released.front();
-			l_released.pop_front();
-			assert(!m_lock_retrylist[lid]->empty());
-			l = m_lock_retrylist[lid];
-			m[lid] = l->front();
-			l->pop_front();
-			if (l->empty()) {
-			//printf("List is empty now\n");
-				m_lock_retrylist.erase(lid);
-				delete l;
+		while(!free_locks.empty()) {
+			lid = free_locks.front();
+			free_locks.pop_front();
+			//assert(!m_lock_retrylist[lid]->empty());
+			if (!m_lock_retrylist[lid]->empty()) {
+				m[lid] = m_lock_retrylist[lid]->front();
+				m_lock_retrylist[lid]->pop_front();
 			}
 		}
 
@@ -298,15 +270,18 @@ lock_server_cache::retryer()
 			m_clid_rpcc[clid]->call(rlock_protocol::retry, clid, lid, r);
 		}
 		m.clear();
-		//printf("Call to client->retry() returned with ret = %d\n",ret);
-		//pthread_mutex_lock(&lock);
-		//pthread_mutex_unlock(&lock);
 	}
-  // This method should be a continuous loop, waiting for locks
-  // to be released and then sending retry messages to those who
-  // are waiting for it.
-
 }
 
-
+void
+lock_server_cache::findFreeLocks(std::list<lock_protocol::lockid_t>& l_free)
+{
+	// Is only called from retryer when it holds the mutex. Thus, we don't have to do this here
+	std::map<lock_protocol::lockid_t, lock_status>::iterator it;
+	for (it = m_lock_status.begin(); it != m_lock_status.end(); it++) {
+		if (it->second == FREE) {
+			l_free.push_back(it->first);
+		}
+	}
+}
 
