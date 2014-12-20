@@ -9,6 +9,8 @@
 #include "rpc.h"
 #include "lock_client.h"
 #include <pthread.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 // Classes that inherit lock_release_user can override dorelease so that 
 // that they will be called when lock_client releases a lock.
@@ -71,7 +73,7 @@ class lock_release_user {
 
 
 class lock_client_cache : public lock_client {
-	enum lock_status { NONE, FREE, LOCKED, ACQUIRING, RELEASING };
+	enum lock_status { NONE, FREE, LOCKED, RETRYING, ACQUIRING, RELEASING };
 	//typedef int l_status;
  private:
   class lock_release_user *lu;
@@ -86,11 +88,12 @@ class lock_client_cache : public lock_client {
 	// Maps locks to their status
 	std::map<rlock_protocol::lockid_t, lock_status> m_lock_status;
 	// Maps locks to a list of threads waiting to acquire it
-	std::map<rlock_protocol::lockid_t, std::list<pthread_cond_t*> > m_lock_waitlist;
+	std::map<rlock_protocol::lockid_t, std::list<pthread_cond_t*>* > m_lock_waitlist;
 	// Maps locks to sequence number of rpc that acquired it
 	std::map<rlock_protocol::lockid_t, rlock_protocol::seqid_t> m_lock_seqid;
 	// If there is an entry for a condition then a thread waits on it
 	std::map<pthread_cond_t*, bool> m_cond_waiting;
+	std::map<lock_protocol::lockid_t, bool> m_lock_retry;
 	// Mutex protecting shared data structures of the class
 	pthread_mutex_t map_lock;
 	// Condition variable releaser() waits on for revoked locks to be freed
@@ -101,7 +104,7 @@ class lock_client_cache : public lock_client {
 	std::map<rlock_protocol::lockid_t, rlock_protocol::seqid_t> m_waiting_revoke;
 	std::list<rlock_protocol::lockid_t> l_released;
 	bool wait_for_revoke_cond;
-
+	template<typename T> bool listContains(std::list<T> l, T v); 
  public:
 
 	

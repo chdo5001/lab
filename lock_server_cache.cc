@@ -78,13 +78,15 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 	printf("lock_server: Try to acquire lock %016llx for client %d\n", lid, clid);
 	int ret = lock_protocol::OK;
 	pthread_mutex_lock(&lock);
+	
 	if (m_clid_rpcc.count(clid) == 0) {
 		// Client has not subscribed yet
 		pthread_mutex_unlock(&lock);
 		//printf("lock_server:  Client %d has not subscribed yet.\n", clid);
 		return lock_protocol::RPCERR;
 	}
-	if (m_lock_clid[lid] == FREE) {
+	
+	if (m_lock_status[lid] == FREE) {
 		// Lock is free. Assign it to client
 		m_lock_clid[lid] = clid;
 		m_lock_seqid[lid] = seqid;
@@ -197,9 +199,6 @@ lock_server_cache::revoker()
 			timeout.tv_sec = now.tv_sec;
 			timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
 			ret = pthread_cond_timedwait(&revoke_cond, &lock, &timeout);
-			if (ret == ETIMEDOUT) {
-				printf("revoker woke up by timeout\n");
-			}
 			//printf("revoker woke up\n");
 		}
 		info = l_revoke.front();
@@ -244,9 +243,6 @@ lock_server_cache::retryer()
 			timeout.tv_sec = now.tv_sec;
 			timeout.tv_nsec = (now.tv_usec * 1000) + COND_TIMEOUT;
 			ret = pthread_cond_timedwait(&retry_cond, &lock, &timeout);
-			if (ret == ETIMEDOUT) {
-				printf("retryer woke up by timeout\n");
-			}
 			findFreeLocks(free_locks);
 		}
 		
@@ -265,7 +261,7 @@ lock_server_cache::retryer()
 		for (it = m.begin(); it != m.end(); it++) {
 			lid = it->first;
 			clid = it->second;
-			//printf("Calling retry for lock %016llx on client %d\n", lid, clid);
+			printf("Calling retry for lock %016llx on client %d\n", lid, clid);
 			//ret = 
 			m_clid_rpcc[clid]->call(rlock_protocol::retry, clid, lid, r);
 		}
