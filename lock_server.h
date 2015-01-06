@@ -39,9 +39,3 @@ class lock_server {
 
 #endif 
 
-
-
-
-
-
-

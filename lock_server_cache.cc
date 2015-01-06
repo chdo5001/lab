@@ -280,4 +280,3 @@ lock_server_cache::findFreeLocks(std::list<lock_protocol::lockid_t>& l_free)
 		}
 	}
 }
-

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 *.[oad]
 *~
 *.log
@@ -9,3 +10,16 @@ extent_server
 yfs_client
 test-lab-4-b
 test-lab-4-c
+=======
+*.[oad]
+*~
+*.log
+lock_demo
+lock_server
+lock_tester
+rpctest
+extent_server
+yfs_client
+test-lab-4-b
+test-lab-4-c
+>>>>>>> 7d38a56bd943217b00fa2c747d980d8c2c5e1742

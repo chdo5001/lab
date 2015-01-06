@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #include "jsl_log.h"
 
 int JSL_DEBUG_LEVEL = 0;
@@ -7,3 +8,14 @@ jsl_set_debug(int level) {
 }
 
 
+=======
+#include "jsl_log.h"
+
+int JSL_DEBUG_LEVEL = 0;
+void
+jsl_set_debug(int level) {
+	JSL_DEBUG_LEVEL = level;
+}
+
+
+>>>>>>> 7d38a56bd943217b00fa2c747d980d8c2c5e1742

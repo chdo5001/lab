@@ -119,4 +119,3 @@ class lock_client_cache : public lock_client {
 };
 #endif
 
-
