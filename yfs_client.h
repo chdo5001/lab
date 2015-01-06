@@ -3,9 +3,8 @@
 
 #include <string>
 //#include "yfs_protocol.h"
-#include "extent_client.h"
 #include <vector>
-
+#include "extent_client.h"
 #include "lock_protocol.h"
 #include "lock_client.h"
 
