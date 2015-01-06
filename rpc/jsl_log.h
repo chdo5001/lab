@@ -23,4 +23,4 @@ extern int JSL_DEBUG_LEVEL;
 void jsl_set_debug(int level);
 
 #endif // __JSL_LOG_H__
->>>>>>> 7d38a56bd943217b00fa2c747d980d8c2c5e1742
+
