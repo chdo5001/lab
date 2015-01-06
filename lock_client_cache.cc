@@ -87,7 +87,7 @@ lock_client_cache::releaser()
 		m_lock_status[lid] = NONE;
 		pthread_mutex_unlock(&map_lock);
 		// if retry == 1, the server notifies this client when lock lid is free again
-		printf("Trying to release lock %016llx for client %d on the server (Retry? 1==%d)\n", lid, cl->id(), retry);
+		//printf("Trying to release lock %016llx for client %d on the server (Retry? 1==%d)\n", lid, cl->id(), retry);
 		ret = cl->call(lock_protocol::release, cl->id(), lid, retry, r);
 		assert (ret == 0);
 		//pthread_mutex_lock(&map_lock);
@@ -164,6 +164,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 				//printf("client %d thread %016lx waits at cond %p\n", cl->id(), pthread_self(), &cond);
 				m_cond_waiting[cond] = true;
 				//pthread_cond_signal(cond);
+				// This additional lock state is necessary to make the AQUIRING-condition in the revoker work
 				m_lock_status[lid] = RETRYING;
 				pthread_cond_wait(cond, &map_lock);
 				//printf("Woke up by retryer. at retry. client %d thread %016lx\n", cl->id(), pthread_self());
