@@ -13,6 +13,7 @@
 		int						clid;
 		rlock_protocol::seqid_t	seqid;
 	};
+	
 class lock_server_cache {
 
  public:

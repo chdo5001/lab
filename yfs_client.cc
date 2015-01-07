@@ -57,7 +57,7 @@ yfs_client::getfile(inum inum, fileinfo &fin)
   if (ret != lock_protocol::OK) {
 	goto release;
   }
-  ret = ec->getattr(inum, a);
+  ret = ec->getAttr(inum, a);
   if (ret != extent_protocol::OK) {
     goto release;
   }
@@ -84,7 +84,7 @@ yfs_client::getdir(inum inum, dirinfo &din)
   }
   printf("getdir %016llx\n", inum);
   extent_protocol::attr a;
-  ret = ec->getattr(inum, a);
+  ret = ec->getAttr(inum, a);
   if (ret != extent_protocol::OK) {
     goto release;
   }
@@ -177,7 +177,7 @@ yfs_client::createFile(inum parent, const char *name, mode_t mode, inum& id) {
 
 	//modify mtime, atime of parent
 	extent_protocol::attr attr;
-	ec->getattr(parent,attr);
+	ec->getAttr(parent,attr);
 	attr.atime = time(NULL);
 	attr.mtime = time(NULL);
 	ec->setAttr(parent, attr);
@@ -261,7 +261,7 @@ yfs_client::unlink(inum parent, const char* name)
 
     //modify mtime, atime of parent
 	extent_protocol::attr attr;
-	ec->getattr(parent,attr);
+	ec->getAttr(parent,attr);
 	attr.atime = time(NULL);
 	attr.mtime = time(NULL);
 	ec->setAttr(parent, attr);

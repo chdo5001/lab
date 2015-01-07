@@ -17,29 +17,72 @@ extent_client::extent_client(std::string dst)
   if (cl->bind() != 0) {
     printf("extent_client: bind failed\n");
   }
+  pthread_mutexattr_init(&mutex_attr);
+  pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&lock, &mutex_attr);
+}
+
+extent_client::~extent_client() {
+	pthread_mutex_destroy(&lock);
+	pthread_mutexattr_destroy(&mutex_attr);
 }
 
 extent_protocol::status
 extent_client::read(extent_protocol::extentid_t id, off_t off, size_t size, std::string &buf)
 {
-	unsigned long long offset = (unsigned long long) off;
-  extent_protocol::status ret = extent_protocol::OK;
-  ret = cl->call(extent_protocol::get, id, offset, size, buf);
-  return ret;
+	extent_protocol::status ret = extent_protocol::OK;
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		// File is not cached. Retrieve it
+		std::string file_buf;
+		extent_protocol::attr attr;
+		mode_t mode;
+		ret = getAttr(id, attr);
+		assert (ret == extent_protocol::OK);
+		ret = cl->call(extent_protocol::get, id, (unsigned long long) 0, attr.size, file_buf);
+		assert (ret == extent_protocol::OK);
+		// Attribute is changed by prior get() call. Update it.
+		ret = getAttr(id, attr);
+		assert (ret == extent_protocol::OK);
+		ret = getMode(id, mode);
+		assert (ret == extent_protocol::OK);
+		cache_content[id] = file_buf;
+		cache_attr[id] = attr;
+		cache_mode[id] = mode;
+		cache_status[id] = CACHED;
+	} else {
+		if (cache_status[id] == REMOVED) {
+			pthread_mutex_unlock(&lock);
+			return extent_protocol::NOENT;
+		}
+	}
+	buf = (cache_content[id]).substr(off, size);
+	//unsigned long long offset = (unsigned long long) off;
+	//ret = cl->call(extent_protocol::get, id, offset, size, buf);	
+	pthread_mutex_unlock(&lock);
+	return ret;
 }
 
 extent_protocol::status
-extent_client::getattr(extent_protocol::extentid_t eid, 
-		       extent_protocol::attr &attr)
+extent_client::getAttr(extent_protocol::extentid_t id, extent_protocol::attr &attr)
 {
-  extent_protocol::status ret = extent_protocol::OK;
-  ret = cl->call(extent_protocol::getattr, eid, attr);
-  return ret;
+	extent_protocol::status ret = extent_protocol::OK;
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		ret = cl->call(extent_protocol::getattr, id, attr);	
+	} else {
+		attr = cache_attr[id];
+	}
+	pthread_mutex_unlock(&lock);
+	return ret;
 }
 
+// TODO: Is this method deprecated? I think, it has been replaced by write()
 extent_protocol::status
 extent_client::put(extent_protocol::extentid_t eid, std::string name)
 {
+	// Let's see if its ever called
+	assert(0);
   extent_protocol::status ret = extent_protocol::OK;
   //int r;
   ret = cl->call(extent_protocol::put, name);
@@ -47,14 +90,19 @@ extent_client::put(extent_protocol::extentid_t eid, std::string name)
 }
 
 extent_protocol::status
-extent_client::remove(extent_protocol::extentid_t pid, const char* name)
+extent_client::remove(extent_protocol::extentid_t id, const char* name)
 {
-  extent_protocol::status ret = extent_protocol::OK;
-  int r;
-  std::string str_name (name);
-  printf("Ec str_name %s \n", str_name.c_str());
-  ret = cl->call(extent_protocol::remove, pid, str_name, r);
-  return ret;
+	extent_protocol::status ret = extent_protocol::OK;
+	int r;
+	std::string str_name (name);
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		ret = cl->call(extent_protocol::remove, id, str_name, r);
+	} else {
+		cache_status[id] = REMOVED;
+	}	
+	pthread_mutex_unlock(&lock);
+	return ret;
 }
 
 extent_protocol::status
@@ -100,7 +148,30 @@ extent_protocol::status
 extent_client::setMode(extent_protocol::extentid_t id, mode_t mode) 
 {
 	int r;
-	return cl->call(extent_protocol::setMode, id, mode, r);
+	extent_protocol::status ret = extent_protocol::OK;
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		ret = cl->call(extent_protocol::setMode, id, mode, r);
+	} else {
+		cache_mode[id] = mode;
+	}
+	pthread_mutex_unlock(&lock);
+	return ret;
+}
+
+extent_protocol::status
+extent_client::getMode(extent_protocol::extentid_t id, mode_t& mode) 
+{
+	//int r;
+	extent_protocol::status ret = extent_protocol::OK;
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		ret = cl->call(extent_protocol::getMode, id, mode);
+	} else {
+		cache_mode[id]= mode;
+	}
+	pthread_mutex_unlock(&lock);
+	return ret;
 }
 
 extent_protocol::status 
@@ -108,7 +179,14 @@ extent_client::setAttr(extent_protocol::extentid_t id, extent_protocol::attr &at
 {
 	//printf("extent_client: Call extent_server::setAttr  size: %d\n", attr.size);
 	int r;
-	int ret = cl->call(extent_protocol::setAttr, id, attr, r);
+	extent_protocol::status ret = extent_protocol::OK;
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		ret = cl->call(extent_protocol::setAttr, id, attr, r);
+	} else {
+		cache_attr[id] = attr;
+	}
+	pthread_mutex_unlock(&lock);
 	return ret;
 }
 
@@ -116,18 +194,34 @@ extent_protocol::status
 extent_client::write(extent_protocol::extentid_t id, off_t off, size_t size, const char* buf) {
 	//printf("extent_client write enter\n");
 	int r;
-	unsigned long long offset = off;
-/*
-	printf("id: %016llx \n", id);
-	printf("off: %d \n", off);
-	printf("offset: %d \n", offset);
-	printf("size: %d \n", size);
-	printf("string: %s \n", buf);
-	printf("Initialize string\n");*/
-	std::string str_buf (buf, size);
-	//printf("str_buf %s\n", str_buf.c_str());
-	//printf("Call\n");
-	r = cl->call(extent_protocol::write, id, offset, size, str_buf, r);
-	//printf("fuse write exit\n");
-	return r;
+	extent_protocol::status ret = extent_protocol::OK;
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		unsigned long long offset = off;
+		std::string str_buf (buf, size);
+		ret = cl->call(extent_protocol::write, id, offset, size, str_buf, r);
+	} else {
+		if (cache_status[id] == REMOVED) {
+			pthread_mutex_unlock(&lock);
+			return extent_protocol::NOENT;
+		}
+		std::string content = cache_content[id];
+		if (off + size > content.length()) {
+			content.resize(off+size, '\0');
+		}
+		content.replace(off, size, buf, 0, size);
+		
+		extent_protocol::attr attr;
+		time_t raw_time ;
+		time(&raw_time);
+		cache_content[id] = content;
+		attr.size = content.size();
+		attr.ctime = (unsigned int)raw_time;
+		attr.mtime = (unsigned int)raw_time;
+		attr.atime = (unsigned int)raw_time;
+		cache_attr[id] = attr;
+		cache_status[id] = MODIFIED;
+	}
+	pthread_mutex_unlock(&lock);
+	return ret;
 }
