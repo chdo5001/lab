@@ -9,11 +9,22 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+lock_release_u::lock_release_u(extent_client* _ec) 
+{
+	ec = _ec;
+}
+
+void
+lock_release_u::dorelease(lock_protocol::lockid_t id)
+{
+	ec->flush(id);
+}
 
 yfs_client::yfs_client(std::string extent_dst, std::string lock_dst)
 {
   ec = new extent_client(extent_dst);
-  lc = new lock_client_cache(lock_dst);
+  lu = new lock_release_u(ec);
+  lc = new lock_client_cache(lock_dst, lu);
 
 }
 
@@ -59,7 +70,7 @@ yfs_client::getfile(inum inum, fileinfo &fin)
   }
   ret = ec->getAttr(inum, a);
   if (ret != extent_protocol::OK) {
-    goto release;
+	goto release;
   }
 //printf("getfile fileinfo atime %d\n", a.atime);
   fin.atime = a.atime;
@@ -108,7 +119,9 @@ yfs_client::readdir(inum id, std::list<dirent>& entries ) {
 	std::map<std::string, extent_protocol::extentid_t> entries_m;
 	int ret = lc->acquire(id);
 	if (ret != lock_protocol::OK) {
-		goto release;
+		//goto release;
+		// TODO: Is this change right?
+		return OK;
 	}
 	//std::list<dirent> dirent_l;
 	// Change type of entries to map for rfc. Had problems with marshalling of lists
@@ -168,28 +181,16 @@ yfs_client::createFile(inum parent, const char *name, mode_t mode, inum& id) {
 	if (ret != lock_protocol::OK) {
 		goto release;
 	}
-	ret = ec->createFile(parent, name);
+	ret = ec->createFile(parent, name, mode);
 	if (ret != extent_protocol::OK) {
 		printf("ec createFile failed\n");
 		lc->release(parent);
 		goto release;
 	}
 
-	//modify mtime, atime of parent
-	extent_protocol::attr attr;
-	ec->getAttr(parent,attr);
-	attr.atime = time(NULL);
-	attr.mtime = time(NULL);
-	ec->setAttr(parent, attr);
-
 	lc->release(parent);
-	printf("Call lookup\n");
+	//printf("Call lookup\n");
 	id = ilookup(parent, name);
-	// TODO: Should we rollback file creation if mode fails? (We should. But maybe we don't need to... :P)
-	// PS: Looking into fuse::getattr(), I think we can ignore the mode completely
-	ret = ec->setMode(id, mode);
-	//printf("Exit yfs_client createfile. New fileid is %d\n", id);
-  
   release:
 
 	return ret;

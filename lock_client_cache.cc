@@ -86,6 +86,7 @@ lock_client_cache::releaser()
 		}
 		m_lock_status[lid] = NONE;
 		pthread_mutex_unlock(&map_lock);
+		lu->dorelease(lid);
 		// if retry == 1, the server notifies this client when lock lid is free again
 		//printf("Trying to release lock %016llx for client %d on the server (Retry? 1==%d)\n", lid, cl->id(), retry);
 		ret = cl->call(lock_protocol::release, cl->id(), lid, retry, r);

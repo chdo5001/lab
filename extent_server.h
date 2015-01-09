@@ -23,7 +23,7 @@ class extent_server {
   int remove(extent_protocol::extentid_t pid, std::string name, int&);
   int readdir(extent_protocol::extentid_t dirid, std::map<std::string, extent_protocol::extentid_t>& entries);
   // TODO: Add the mode to list of arguments (and handle it...)
-  int createFile(extent_protocol::extentid_t parent, std::string name, int&);
+  int createFile(extent_protocol::extentid_t parent, std::string name, mode_t mode, extent_protocol::extentid_t& _id);
   int open(extent_protocol::extentid_t id, int&); 
   int createDir(extent_protocol::extentid_t parent, std::string name, int&);
   int setMode(extent_protocol::extentid_t id, mode_t mode, int&); 

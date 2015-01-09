@@ -12,7 +12,7 @@ class extent_protocol {
   typedef unsigned long long extentid_t;
   enum xxstatus { OK, RPCERR, NOENT, IOERR, FBIG};
   enum rpc_numbers {
-    put = 0x6001,
+    put = 0x6012,
     get = 0x6002,
     getattr = 0x6003,
     remove = 0x6004,
@@ -23,7 +23,7 @@ class extent_protocol {
 	setMode = 0x6009,
 	getMode = 0x6010,
 	setAttr = 0x6011,
-	write = 0x6012
+	write = 0x6001
   };
   static const unsigned int maxextent = 8192*1000;
 

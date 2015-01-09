@@ -188,7 +188,7 @@ lock_server_cache::revoker()
 	lock_protocol::lockid_t lid;
 	rlock_protocol::seqid_t seqid;
 	int r;
-	int ret;
+	//int ret;
 	struct timeval now;
 	struct timespec timeout;
 	while (true) {
@@ -232,7 +232,7 @@ lock_server_cache::retryer()
 	int clid;
 		struct timeval now;
 	struct timespec timeout;
-	int ret;
+	//int ret;
 	std::map<lock_protocol::lockid_t, int> m;
 	std::list<lock_protocol::lockid_t> free_locks;
 	std::map<lock_protocol::lockid_t, int>::iterator it;

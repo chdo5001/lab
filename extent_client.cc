@@ -55,6 +55,7 @@ extent_client::read(extent_protocol::extentid_t id, off_t off, size_t size, std:
 			pthread_mutex_unlock(&lock);
 			return extent_protocol::NOENT;
 		}
+		(cache_attr[id]).atime = (unsigned int) time(NULL);
 	}
 	buf = (cache_content[id]).substr(off, size);
 	//unsigned long long offset = (unsigned long long) off;
@@ -77,18 +78,6 @@ extent_client::getAttr(extent_protocol::extentid_t id, extent_protocol::attr &at
 	return ret;
 }
 
-// TODO: Is this method deprecated? I think, it has been replaced by write()
-extent_protocol::status
-extent_client::put(extent_protocol::extentid_t eid, std::string name)
-{
-	// Let's see if its ever called
-	assert(0);
-  extent_protocol::status ret = extent_protocol::OK;
-  //int r;
-  ret = cl->call(extent_protocol::put, name);
-  return ret;
-}
-
 extent_protocol::status
 extent_client::remove(extent_protocol::extentid_t id, const char* name)
 {
@@ -96,11 +85,12 @@ extent_client::remove(extent_protocol::extentid_t id, const char* name)
 	int r;
 	std::string str_name (name);
 	pthread_mutex_lock(&lock);
-	if (cache_status.count(id) == 0) {
-		ret = cl->call(extent_protocol::remove, id, str_name, r);
-	} else {
+	if (cache_status.count(id) != 0) {
+		// Mark the cached file as deleted to prevent accesses to it
+		// Just deleting it from the cache would result in an unnecessary rpc when trying to access it again
 		cache_status[id] = REMOVED;
-	}	
+	}
+	ret = cl->call(extent_protocol::remove, id, str_name, r);
 	pthread_mutex_unlock(&lock);
 	return ret;
 }
@@ -116,14 +106,24 @@ extent_client::readdir(extent_protocol::extentid_t di, std::map<std::string, ext
 }
 
 extent_protocol::status 
-extent_client::createFile(extent_protocol::extentid_t parent, const char *name) 
+extent_client::createFile(extent_protocol::extentid_t parent, const char *name, mode_t mode) 
 {
 	extent_protocol::status ret = extent_protocol::OK;
+	extent_protocol::extentid_t id;
+	extent_protocol::attr attr;
 	//extent_protocol::dirent dirent;
 	std::string str_name (name);
 	//dirent.inum = parent;
-	int r;
-	ret = cl->call(extent_protocol::createFile, parent, str_name, r);
+	ret = cl->call(extent_protocol::createFile, parent, str_name, mode, id);
+	assert(ret == extent_protocol::OK);
+	ret = getAttr(id, attr);
+	assert(ret == extent_protocol::OK);
+	pthread_mutex_lock(&lock);
+	cache_content[id] = "";
+	cache_attr[id] = attr;
+	cache_mode[id] = mode;
+	cache_status[id] = CACHED;
+	pthread_mutex_unlock(&lock);
 	return ret;
 }
 
@@ -154,6 +154,8 @@ extent_client::setMode(extent_protocol::extentid_t id, mode_t mode)
 		ret = cl->call(extent_protocol::setMode, id, mode, r);
 	} else {
 		cache_mode[id] = mode;
+		(cache_attr[id]).ctime = (unsigned int) time(NULL);
+		cache_status[id] = MODIFIED;
 	}
 	pthread_mutex_unlock(&lock);
 	return ret;
@@ -185,9 +187,35 @@ extent_client::setAttr(extent_protocol::extentid_t id, extent_protocol::attr &at
 		ret = cl->call(extent_protocol::setAttr, id, attr, r);
 	} else {
 		cache_attr[id] = attr;
+		cache_status[id] = MODIFIED;
 	}
 	pthread_mutex_unlock(&lock);
 	return ret;
+}
+
+void 
+extent_client::flush(extent_protocol::extentid_t id) 
+{
+	pthread_mutex_lock(&lock);
+	if (cache_status.count(id) == 0) {
+		pthread_mutex_unlock(&lock);
+		return;
+	} 
+	extent_protocol::status ret = extent_protocol::OK;
+	if (cache_status[id] == MODIFIED) {
+		int r;
+		ret = cl->call(extent_protocol::write, id, (unsigned long long) 0, cache_attr[id].size, cache_content[id], r);
+		assert(ret == extent_protocol::OK);
+		ret = cl->call(extent_protocol::setAttr, id, cache_attr[id], r);
+		assert(ret == extent_protocol::OK);
+		ret = cl->call(extent_protocol::setMode, id, cache_mode[id], r);
+		assert(ret == extent_protocol::OK);
+	} 
+	cache_content.erase(id);
+	cache_attr.erase(id);
+	cache_mode.erase(id);
+	cache_status.erase(id);
+	pthread_mutex_unlock(&lock);
 }
 
 extent_protocol::status 
@@ -196,9 +224,9 @@ extent_client::write(extent_protocol::extentid_t id, off_t off, size_t size, con
 	int r;
 	extent_protocol::status ret = extent_protocol::OK;
 	pthread_mutex_lock(&lock);
+	std::string str_buf (buf, size);
 	if (cache_status.count(id) == 0) {
 		unsigned long long offset = off;
-		std::string str_buf (buf, size);
 		ret = cl->call(extent_protocol::write, id, offset, size, str_buf, r);
 	} else {
 		if (cache_status[id] == REMOVED) {
@@ -209,19 +237,17 @@ extent_client::write(extent_protocol::extentid_t id, off_t off, size_t size, con
 		if (off + size > content.length()) {
 			content.resize(off+size, '\0');
 		}
-		content.replace(off, size, buf, 0, size);
-		
+		content.replace(off, size, str_buf, 0, size);
 		extent_protocol::attr attr;
-		time_t raw_time ;
-		time(&raw_time);
 		cache_content[id] = content;
 		attr.size = content.size();
-		attr.ctime = (unsigned int)raw_time;
-		attr.mtime = (unsigned int)raw_time;
-		attr.atime = (unsigned int)raw_time;
+		attr.ctime = time(NULL);
+		attr.mtime = attr.ctime;
+		attr.atime = attr.ctime;
 		cache_attr[id] = attr;
 		cache_status[id] = MODIFIED;
 	}
 	pthread_mutex_unlock(&lock);
 	return ret;
 }
+

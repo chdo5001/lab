@@ -65,7 +65,7 @@ getattr(yfs_client::inum inum, struct stat &st)
 void
 fuseserver_getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info *fi)
 {
-    struct stat st;
+	struct stat st;
     yfs_client::inum inum = ino; // req->in.h.nodeid;
     yfs_client::status ret;
 
@@ -265,8 +265,6 @@ fuseserver_readdir(fuse_req_t req, fuse_ino_t ino, size_t size,
   }
 
   memset(&b, 0, sizeof(b));
-
-
    // fill in the b data structure using dirbuf_add
 	std::list<yfs_client::dirent> entries;
 	yfs->readdir(inum, entries);
@@ -320,12 +318,6 @@ fuseserver_mkdir(fuse_req_t req, fuse_ino_t parent, const char *name,
     fuse_reply_err(req, ENOSYS);
 	return;
  }
-/*
-#if 0
-  fuse_reply_entry(req, &e);
-#else
-  fuse_reply_err(req, ENOSYS);
-#endif*/
 
 
 void

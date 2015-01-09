@@ -25,8 +25,6 @@ extent_server::extent_server()
 	fileid_name_m[0x1] = "/";
 }
 
-// TODO: review changes of ctime/atime/mtime
-
 int extent_server::put(extent_protocol::extentid_t id, std::string buf, int &)
 {
 //printf("Enter extent_server put");
@@ -121,7 +119,10 @@ int extent_server::remove(extent_protocol::extentid_t pid, std::string name, int
 	if (fileid_mode_m.count(id) != 0) {
 		fileid_mode_m.erase(id);
 	}
-	
+	// Change parents dir c/a/mtime
+	fileid_attr_m[pid].ctime = time(NULL);
+	fileid_attr_m[pid].atime = time(NULL);
+	fileid_attr_m[pid].mtime = time(NULL);
 	return extent_protocol::OK;
 }
 
@@ -137,14 +138,12 @@ bool extent_server::isdir(extent_protocol::extentid_t id)
   return ! isfile(id);
 }
 
-int extent_server::createFile(extent_protocol::extentid_t parent, std::string name, int&)
+int extent_server::createFile(extent_protocol::extentid_t parent, std::string name, mode_t mode, extent_protocol::extentid_t& _id)
 {
 	//extent_protocol::extentid_t parent = dirent.inum;
 	//std::string name = dirent.name;
 	// TODO: Add error handling (check for duplicate names, etc)
-	// TODO: store the mode somewhere
-    
-        // TODO: does creating a dir also work (fuse::mkdir)? 
+
 	printf("Create new file: %s", name.c_str());
 	printf("in dir:  %016llx\n", parent);
 	int fd;
@@ -169,7 +168,7 @@ int extent_server::createFile(extent_protocol::extentid_t parent, std::string na
 	// TODO: Move put() behind the condition
 	put(id, "", r);
 	if (fileid_name_m.count(parent) == 0) {
-		printf("es CreateFile NOENT\n");
+		//printf("es CreateFile NOENT\n");
 		return extent_protocol::NOENT;
 	}
 	//std::string* str = new std::string(name);
@@ -177,8 +176,14 @@ int extent_server::createFile(extent_protocol::extentid_t parent, std::string na
 	fileid_dir_m[id] = parent;
 	fileid_name_m[id] = name;
 	fileid_open_m[id] = 0;
+	fileid_mode_m[id] = mode;
 	//printf("dirid_fmap[parent].size(): %d\n",(dirid_fmap_m[parent]).size()); 
 	//return extent_protocol::NOENT;
+		// Change parents dir c/a/mtime
+	fileid_attr_m[parent].ctime = fileid_attr_m[id].ctime;
+	fileid_attr_m[parent].atime = fileid_attr_m[id].atime;
+	fileid_attr_m[parent].mtime = fileid_attr_m[id].mtime;
+	_id = id;
 	return extent_protocol::OK;
 }
 
@@ -239,7 +244,7 @@ extent_server::createDir(extent_protocol::extentid_t parent, std::string name, i
 	//fileid_open_m[id] = 0;
 	//printf("dirid_fmap[parent].size(): %d\n",(dirid_fmap_m[parent]).size()); 
 	//return extent_protocol::NOENT;
-	printf("extent_server createDir exit\n");
+	//printf("extent_server createDir exit\n");
 	return extent_protocol::OK;
 }
 
@@ -247,6 +252,7 @@ int
 extent_server::setMode(extent_protocol::extentid_t id, mode_t mode, int&) 
 { 
 	fileid_mode_m[id] = mode;
+	fileid_attr_m[id].ctime = time(NULL);
 	return extent_protocol::OK;
 }
 
@@ -272,13 +278,26 @@ extent_server::setAttr(extent_protocol::extentid_t id, extent_protocol::attr att
 	//attr->size = size;
 	//printf("Get file content\n");
 	std::string content = fileid_content_m[id];
-	//printf("Content: %s\n", content.c_str());
-	//printf("Resize to %d\n", attr.size);
-	content.resize(attr.size, '\0');
-	//printf("New content: %s\n", content.c_str());
-	int r;
-	//printf("put\n");
-	put(id, content, r);
+	if (content.size() != attr.size) {
+		//printf("Content: %s\n", content.c_str());
+		//printf("Resize to %d\n", attr.size);
+		content.resize(attr.size, '\0');
+		//printf("New content: %s\n", content.c_str());
+		int r;
+		//printf("put\n");
+		put(id, content, r);
+	} else {
+		extent_protocol::attr* _attr = &(fileid_attr_m[id]);
+		if (attr.atime != _attr->atime) {
+			_attr->atime = attr.atime;
+		}
+		if (attr.mtime != _attr->mtime) {
+			_attr->mtime = attr.mtime;
+		}
+		if (attr.ctime != _attr->ctime) {
+			_attr->ctime = attr.ctime;
+		}
+	}
 	//printf("Return OK");
 	return extent_protocol::OK;
 }
