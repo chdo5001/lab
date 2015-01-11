@@ -23,6 +23,9 @@ lock_client_cache::lock_client_cache(std::string xdst,
 				     class lock_release_user *_lu)
   : lock_client(xdst), lu(_lu)
 {
+	pthread_mutex_init(&map_lock, NULL);
+	pthread_cond_init(&lock_free, NULL);
+	pthread_cond_init(&revoke_cond, NULL);
 	seqid = 1;
 	wait_for_revoke_cond = false;
   srand(time(NULL)^last_port);
@@ -44,9 +47,7 @@ lock_client_cache::lock_client_cache(std::string xdst,
   pthread_t th;
   r = pthread_create(&th, NULL, &releasethread, (void *) this);
   assert (r == 0);
-	pthread_mutex_init(&map_lock, NULL);
-	pthread_cond_init(&lock_free, NULL);
-	pthread_cond_init(&revoke_cond, NULL);
+
 }
 
 lock_client_cache::~lock_client_cache() {

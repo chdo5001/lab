@@ -27,13 +27,13 @@ retrythread(void *x)
 lock_server_cache::lock_server_cache()
 {
   pthread_t th;
+  pthread_mutex_init(&lock, NULL);
+  pthread_cond_init(&revoke_cond, NULL);
+  pthread_cond_init(&retry_cond, NULL);
   int r = pthread_create(&th, NULL, &revokethread, (void *) this);
   assert (r == 0);
   r = pthread_create(&th, NULL, &retrythread, (void *) this);
   assert (r == 0);
-  pthread_mutex_init(&lock, NULL);
-  pthread_cond_init(&revoke_cond, NULL);
-  pthread_cond_init(&retry_cond, NULL);
 }
 
 lock_server_cache::~lock_server_cache()
