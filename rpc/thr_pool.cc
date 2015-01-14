@@ -66,3 +66,4 @@ ThrPool::takeJob(job_t *j)
 	return (j->f!=NULL);
 }
 
+

@@ -256,3 +256,4 @@ operator>>(unmarshall &u, std::map<A,B> &d) {
 }
 
 #endif
+

@@ -1,3 +1,4 @@
+
 #ifndef __SCOPED_LOCK__
 #define __SCOPED_LOCK__
 
@@ -15,3 +16,4 @@ struct ScopedLock {
 		}
 };
 #endif  /*__SCOPED_LOCK__*/
+
