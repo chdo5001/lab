@@ -227,7 +227,8 @@ extent_client::write(extent_protocol::extentid_t id, off_t off, size_t size, con
 	std::string str_buf (buf, size);
 	if (cache_status.count(id) == 0) {
 		unsigned long long offset = off;
-		ret = cl->call(extent_protocol::write, id, offset, size, str_buf, r);
+		
+		ret = cl->call(extent_protocol::write, id, offset, (unsigned int) size, str_buf, r);
 	} else {
 		if (cache_status[id] == REMOVED) {
 			pthread_mutex_unlock(&lock);
