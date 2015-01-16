@@ -29,7 +29,7 @@ handle_mgr::get_handle(std::string m)
     sockaddr_in dstsock;
     make_sockaddr(m.c_str(), &dstsock);
     cl = new rpcc(dstsock);
-    printf("paxos::get_handle trying to bind...%s\n", m.c_str());
+    printf("handle_mgr::get_handle trying to bind...%s\n", m.c_str());
     ret = cl->bind(rpcc::to(1000));
     if (ret < 0) {
       printf("handle_mgr::get_handle bind failure! %s %d\n", m.c_str(), ret);

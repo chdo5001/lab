@@ -60,7 +60,6 @@ config::config(std::string _first, std::string _me, config_view_change *_vc)
   // XXX hack; maybe should have its own port number
   pxsrpc = acc->get_rpcs();
   pxsrpc->reg(paxos_protocol::heartbeat, this, &config::heartbeat);
-
   assert(pthread_mutex_lock(&cfg_mutex)==0);
 
   reconstruct();
@@ -132,8 +131,7 @@ config::paxos_commit(unsigned instance, std::string value)
   assert(pthread_mutex_lock(&cfg_mutex)==0);
 
   newmem = members(value);
-  printf("config::paxos_commit: %d: %s\n", instance, 
-	 print_members(newmem).c_str());
+  printf("config::paxos_commit: %d: %s\n", instance, print_members(newmem).c_str());
 
   for (unsigned i = 0; i < mems.size(); i++) {
     printf("config::paxos_commit: is %s still a member?\n", mems[i].c_str());
@@ -326,17 +324,14 @@ config::doheartbeat(std::string m)
   handle h(m);
   if (h.get_rpcc()) {
     assert(pthread_mutex_unlock(&cfg_mutex)==0);
-    ret = h.get_rpcc()->call(paxos_protocol::heartbeat, me, vid, r, 
-			 rpcc::to(1000));
+    ret = h.get_rpcc()->call(paxos_protocol::heartbeat, me, vid, r, rpcc::to(1000));
     assert(pthread_mutex_lock(&cfg_mutex)==0);
   } 
   if (ret != paxos_protocol::OK) {
-    if (ret == rpc_const::atmostonce_failure || 
-	ret == rpc_const::oldsrv_failure) {
+    if (ret == rpc_const::atmostonce_failure || ret == rpc_const::oldsrv_failure) {
       mgr.delete_handle(m);
     } else {
-      printf("doheartbeat: problem with %s (%d) my vid %d his vid %d\n", 
-	     m.c_str(), ret, vid, r);
+      printf("doheartbeat: problem with %s (%d) my vid %d his vid %d\n", m.c_str(), ret, vid, r);
       if (ret < 0) res = FAILURE;
       else res = VIEWERR;
     }

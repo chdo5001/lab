@@ -10,7 +10,7 @@ class rsm_client_protocol {
   typedef int status;
   enum rpc_numbers {
     invoke = 0x9001,
-    members,
+    members = 0x9002,
   };
 };
 
@@ -30,9 +30,9 @@ class rsm_protocol {
   typedef int status;
   enum rpc_numbers {
     invoke = 0x10001,
-    transferreq,
-    transferdonereq,
-    joinreq,
+    transferreq = 0x10002,
+    transferdonereq = 0x10003,
+    joinreq = 0x10004,
   };
 
   struct transferres {
