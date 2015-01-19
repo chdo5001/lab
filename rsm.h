@@ -72,6 +72,7 @@ class rsm : public config_view_change {
   void set_state_transfer(rsm_state_transfer *_stf) { stf = _stf; };
   void recovery();
   void commit_change();
+  void commit_change_wo();
 
 };
 

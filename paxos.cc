@@ -83,7 +83,7 @@ proposer::setn()
 }
 
 bool
-proposer::run(int instance, std::vector<std::string> newnodes, std::string newv)
+proposer::run(int instance, std::vector<std::string> current_nodes, std::string newv)
 {
 	std::vector<std::string> accepts;
 	std::vector<std::string> nodes;
@@ -92,7 +92,7 @@ proposer::run(int instance, std::vector<std::string> newnodes, std::string newv)
 	bool r = false;
 	
 	pthread_mutex_lock(&pxs_mutex);
-	printf("start: initiate paxos for %s w. i=%d v=%s stable=%d\n", print_members(newnodes).c_str(), instance, newv.c_str(), stable);
+	printf("start: initiate paxos for %s w. i=%d v=%s stable=%d\n", print_members(current_nodes).c_str(), instance, newv.c_str(), stable);
 	
 	if (!stable) {  // already running proposer?
 		printf("proposer::run: already running\n");
@@ -102,13 +102,14 @@ proposer::run(int instance, std::vector<std::string> newnodes, std::string newv)
 	// TODO: is this the right place to do this?
 	my_n.n = 0;
 	
-	c_nodes = newnodes;
+	c_nodes = current_nodes;
 	c_v = newv;
 	setn();
 	accepts.clear();
 	nodes.clear();
 	v.clear();
 	nodes = c_nodes;
+
 
 	
 	if (prepare(instance, accepts, nodes, v)) {
@@ -125,7 +126,6 @@ proposer::run(int instance, std::vector<std::string> newnodes, std::string newv)
 			if (majority(c_nodes, accepts)) {
 				printf("paxos::manager: received a majority of accept responses\n");
 				breakpoint2();
-				stable = true;
 				decide(instance, accepts, v);
 				r = true;
 			} else {
@@ -136,10 +136,10 @@ proposer::run(int instance, std::vector<std::string> newnodes, std::string newv)
 		}
 	} else {
 		printf("paxos::manager: prepare is rejected %d\n", stable);
-		// TODO: if (stable == false) delay&restart (I think this is done in rsm::joinreq)
 	}
 	stable = true;
 	pthread_mutex_unlock(&pxs_mutex);
+	printf("Exiting proposer->run()\n");
 	return r;
 }
 
@@ -152,6 +152,9 @@ proposer::prepare(unsigned instance, std::vector<std::string>& accepts, std::vec
 	p_h.m = "";
 	for (unsigned i = 0; i < nodes.size(); i++) {
 		handle h(nodes[i]);
+		if (h.get_rpcc() == 0) {
+			continue;
+		}
 		paxos_protocol::prepareres res;
 		paxos_protocol::preparearg arg;
 		
@@ -205,6 +208,9 @@ proposer::accept(unsigned instance, std::vector<std::string> &accepts, std::vect
 	int r;
 	for (unsigned i = 0; i < nodes.size(); i++) {
 		handle h(nodes[i]);
+		if (h.get_rpcc() == 0) {
+			continue;
+		}
 		paxos_protocol::acceptarg arg;
 		
 		arg.instance = instance;
@@ -225,25 +231,33 @@ proposer::accept(unsigned instance, std::vector<std::string> &accepts, std::vect
 void
 proposer::decide(unsigned instance, std::vector<std::string> accepts, std::string v)
 {
+	printf("proposer::decide() entered\n");
 	paxos_protocol::status ret;
 	int r;
-	acc->commit(instance, v);
+	//acc->commit(instance, v);
 	// TODO: Must the decide-msg be received by a majority of nodes to make the algorithm correct?
+	printf("accepts.size: %d\n", accepts.size());
 	for (unsigned i = 0; i < accepts.size(); i++) {
+		printf("Getting handle for %s\n", accepts[i].c_str());
 		handle h(accepts[i]);
+		if (h.get_rpcc() == 0) {
+			continue;
+		}
+		printf("Done\n");
 		paxos_protocol::decidearg arg;
 		
 		arg.instance = instance;
 		arg.v = v;
 		
 		printf("Sending decidereq to %s\n", accepts[i].c_str());
-		pthread_mutex_unlock(&pxs_mutex);
+		//pthread_mutex_unlock(&pxs_mutex);
 		ret = h.get_rpcc()->call(paxos_protocol::decidereq, me, arg, r, rpcc::to(1000)); 
-		pthread_mutex_lock(&pxs_mutex);
+		//pthread_mutex_lock(&pxs_mutex);
 		if (ret == paxos_protocol::OK) {
 			printf("Node %s received decide msg\n", accepts[i].c_str());
 		}
 	}
+	printf("proposer::decide() exit\n");
 }
 
 acceptor::acceptor(class paxos_change *_cfg, bool _first, std::string _me, std::string _value)
@@ -278,6 +292,7 @@ acceptor::preparereq(std::string src, paxos_protocol::preparearg a, paxos_protoc
 	if (a.instance <= instance_h) {
 		r.oldinstance = true;
 		r.v_a = values[a.instance];
+		//printf("log: %s\n", dump().c_str());
 		return paxos_protocol::OK;
 	}
 	
@@ -285,16 +300,18 @@ acceptor::preparereq(std::string src, paxos_protocol::preparearg a, paxos_protoc
 		n_h  = a.n;
 		r.accept = true;
 		if (n_a.n == 0) {
-			// No prepare has been accepted besfore
+			// No prepare has been accepted before
 			r.v_a = "";
 		} else {
 			r.v_a = v_a;
-			r.n_a = n_a;
-			l->loghigh(n_a);
+			r.n_a = n_a;	
 		}
+		l->loghigh(n_a);
+		//printf("log: %s\n", dump().c_str());
 		return paxos_protocol::OK;
 	}
 	r.accept = false;
+	//printf("log: %s\n", dump().c_str());
 	return paxos_protocol::OK;
 }
 
@@ -302,10 +319,11 @@ paxos_protocol::status
 acceptor::acceptreq(std::string src, paxos_protocol::acceptarg a, int &r)
 {
 	if (a.n >= n_h) {
-	return paxos_protocol::OK;
 		n_a = a.n;
 		v_a = a.v;
 		l->logprop(n_a, v_a);
+		//printf("log: %s\n", dump().c_str());
+		return paxos_protocol::OK;
 	}
 	return paxos_protocol::ERR;
 	
@@ -340,6 +358,7 @@ acceptor::commit_wo(unsigned instance, std::string value)
       cfg->paxos_commit(instance, value);
       pthread_mutex_lock(&pxs_mutex);
     }
+	//printf("log: %s\n", dump().c_str());
   }
 }
 

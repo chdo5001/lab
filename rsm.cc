@@ -223,13 +223,23 @@ rsm::join(std::string m) {
 void 
 rsm::commit_change() 
 {
+	printf("rsm::commit_change entered\n");
   pthread_mutex_lock(&rsm_mutex);
+  printf("Mutex acquired\n");
   // Lab 7:
   // - If I am not part of the new view, start recovery
-  if (!cfg->ismember(cfg->myaddr())) {
-	pthread_cond_signal(&recovery_cond);
-  }
+	commit_change_wo();
   pthread_mutex_unlock(&rsm_mutex);
+  printf("rsm::commit_change exit\n");
+}
+
+void
+rsm::commit_change_wo() 
+{
+	set_primary();
+	if (!cfg->ismember(cfg->myaddr())) {
+		pthread_cond_signal(&recovery_cond);
+	}
 }
 
 
@@ -300,13 +310,17 @@ rsm::joinreq(std::string m, viewstamp last, rsm_protocol::joinres &r)
     printf("joinreq: is still a member\n");
     r.log = cfg->dump();
   } else if (cfg->myaddr() != primary) {
-    printf("joinreq: busy\n");
-    ret = rsm_client_protocol::BUSY;
+    printf("joinreq: not primary\n");
+    ret = rsm_client_protocol::NOTPRIMARY;
   } else {
     // Lab 7: invoke config to create a new view that contains m
 	if (cfg->add(m)) {
 	// TODO: Fill out r
+		printf("rsm::joinreq  cfg->add() succesfull\n");
 		r.log = cfg->dump();
+	} else {
+		ret = rsm_client_protocol::BUSY;
+		printf("rsm::joinreq  cfg->add() UNsuccesfull\n");
 	}
   }
   assert (pthread_mutex_unlock(&rsm_mutex) == 0);

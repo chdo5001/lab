@@ -145,7 +145,7 @@ config::paxos_commit(unsigned instance, std::string value)
   myvid = instance;
   if (vc) {
     assert(pthread_mutex_unlock(&cfg_mutex)==0);
-    vc->commit_change();
+    vc->commit_change_wo();
     assert(pthread_mutex_lock(&cfg_mutex)==0);
   }
   assert(pthread_mutex_unlock(&cfg_mutex)==0);
@@ -216,7 +216,7 @@ config::add(std::string new_m)
 bool
 config::remove_wo(std::string m)
 {
-  printf("config::remove: myvid %d remove? %s\n", myvid, m.c_str());
+  printf("config::remove: myvid %d remove: %s\n", myvid, m.c_str());
   std::vector<std::string> n;
   for (unsigned i = 0; i < mems.size(); i++) {
     if (mems[i] != m) n.push_back(mems[i]);
