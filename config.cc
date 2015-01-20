@@ -205,6 +205,7 @@ config::add(std::string new_m)
   assert(pthread_mutex_lock(&cfg_mutex)==0);
   if (r) {
     printf("config::add: proposer returned success\n");
+	//pthread_cond_signal(&config_cond);
   } else {
     printf("config::add: proposer returned failure\n");
   }
@@ -227,6 +228,7 @@ config::remove_wo(std::string m)
   assert(pthread_mutex_lock(&cfg_mutex)==0);
   if (r) {
     printf("config::remove: proposer returned success\n");
+	//pthread_cond_signal(&config_cond);
   } else {
     printf("config::remove: proposer returned failure\n");
   }

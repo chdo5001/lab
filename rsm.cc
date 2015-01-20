@@ -111,7 +111,7 @@ rsm::rsm(std::string _first, std::string _me)
   pthread_cond_init(&join_cond, NULL);
 
   cfg = new config(_first, _me, this);
-
+	last_myvs.vid = cfg->vid();
   rsmrpc = cfg->get_rpcs();
   rsmrpc->reg(rsm_client_protocol::invoke, this, &rsm::client_invoke);
   rsmrpc->reg(rsm_client_protocol::members, this, &rsm::client_members);
@@ -146,9 +146,13 @@ rsm::recovery()
 			if (join(primary)) {
 				printf("rsm::recovery: joined\n");
 			} else {
+				//printf("Recovery: Go to sleep\n");
 				assert(pthread_mutex_unlock(&rsm_mutex)==0);
+				
 				sleep (30); // XXX make another node in cfg primary?
+				//printf("Recovery Woke up again\n");
 				assert(pthread_mutex_lock(&rsm_mutex)==0);
+				//printf("Recovery Mutex acquired\n");
 			}
 		}
 	
@@ -223,20 +227,21 @@ rsm::join(std::string m) {
 void 
 rsm::commit_change() 
 {
-	printf("rsm::commit_change entered\n");
+	//printf("rsm::commit_change entered\n");
   pthread_mutex_lock(&rsm_mutex);
-  printf("Mutex acquired\n");
+ // printf("Mutex acquired\n");
   // Lab 7:
   // - If I am not part of the new view, start recovery
 	commit_change_wo();
   pthread_mutex_unlock(&rsm_mutex);
-  printf("rsm::commit_change exit\n");
+  //printf("rsm::commit_change exit\n");
 }
 
 void
 rsm::commit_change_wo() 
 {
 	set_primary();
+	last_myvs.vid = cfg->vid();
 	if (!cfg->ismember(cfg->myaddr())) {
 		pthread_cond_signal(&recovery_cond);
 	}
@@ -315,12 +320,11 @@ rsm::joinreq(std::string m, viewstamp last, rsm_protocol::joinres &r)
   } else {
     // Lab 7: invoke config to create a new view that contains m
 	if (cfg->add(m)) {
-	// TODO: Fill out r
-		printf("rsm::joinreq  cfg->add() succesfull\n");
+		//printf("rsm::joinreq  cfg->add() succesfull\n");
 		r.log = cfg->dump();
 	} else {
 		ret = rsm_client_protocol::BUSY;
-		printf("rsm::joinreq  cfg->add() UNsuccesfull\n");
+		//printf("rsm::joinreq  cfg->add() UNsuccesfull\n");
 	}
   }
   assert (pthread_mutex_unlock(&rsm_mutex) == 0);

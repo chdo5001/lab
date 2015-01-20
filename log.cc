@@ -23,7 +23,7 @@ log::logread(void)
 
   from.open(name.c_str());
   printf ("logread\n");
-  printf("logread_before: %s\n", dump().c_str());
+  //printf("logread_before: %s\n", dump().c_str());
   while (from >> type) {
     if (type == "done") {
       std::string v;
@@ -56,7 +56,7 @@ log::logread(void)
     }
   } 
   from.close();
-  printf("logread_after: %s\n", dump().c_str());
+  //printf("logread_after: %s\n", dump().c_str());
 }
 
 std::string 
@@ -76,20 +76,21 @@ log::dump()
 void
 log::restore(std::string s)
 {
-	printf("logrestore_before: %s\n", dump().c_str());
+	//printf("RESTORE\n\n\n");
+	//printf("logrestore_before: %s\n", dump().c_str());
   std::ofstream f;
   printf("restore: %s\n", s.c_str());
   f.open(name.c_str(), std::ios::trunc);
   f << s;
   f.close();
-  printf("logrestore_after: %s\n", dump().c_str());
+  //printf("logrestore_after: %s\n", dump().c_str());
 }
 
 // XXX should be an atomic operation
 void
 log::loginstance(unsigned instance, std::string v)
 {
-printf("loginstance_before: %s\n", dump().c_str());
+//printf("loginstance_before: %s\n", dump().c_str());
   std::ofstream f;
   f.open(name.c_str(), std::ios::app);
   f << "done";
@@ -99,13 +100,14 @@ printf("loginstance_before: %s\n", dump().c_str());
   f << v;
   f << "\n";
   f.close();
-  printf("loginstance_after: %s\n", dump().c_str());
+  //printf("LogInstance %s\n", dump().c_str());
+ // printf("loginstance_after: %s\n", dump().c_str());
 }
 
 void
 log::loghigh(prop_t n_h)
 {
-	printf("loghigh_before: %s\n", dump().c_str());
+	//printf("loghigh_add: %d,%s\n", n_h.n,n_h.m.c_str());
   std::ofstream f;
   f.open(name.c_str(), std::ios::app);
   f << "high";
@@ -115,13 +117,15 @@ log::loghigh(prop_t n_h)
   f << n_h.m;
   f << "\n";
   f.close();
-  printf("loghigh_after: %s\n", dump().c_str());
+  //printf("LogHigh %s\n", dump().c_str());
+  //printf("loghigh_after: %s\n", dump().c_str());
 }
 
 void
 log::logprop(prop_t n, std::string v)
 {
-	printf("logprop_before: %s\n", dump().c_str());
+//	printf("logprop_before: %s\n", dump().c_str());
+//printf("logprop_add: %d,%s val=%s\n", n.n,n.m.c_str(), v.c_str());
   std::ofstream f;
   f.open(name.c_str(), std::ios::app);
   f << "prop";
@@ -133,6 +137,6 @@ log::logprop(prop_t n, std::string v)
   f << v;
   f << "\n";
   f.close();
-  printf("logprop_after: %s\n", dump().c_str());
+ // printf("logprop_after: %s\n", dump().c_str());
 }
 
