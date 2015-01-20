@@ -33,7 +33,7 @@ sub killprocess {
 
 sub cleanup {
   kill 9, @pid;
-  #unlink(@logs);
+  unlink(@logs);
   sleep 2;
 }
 
