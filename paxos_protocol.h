@@ -14,9 +14,9 @@ class paxos_protocol {
   typedef int status;
   enum rpc_numbers {
     preparereq = 0x11001,
-    acceptreq,
-    decidereq,
-    heartbeat,
+    acceptreq = 0x11002,
+    decidereq = 0x11003,
+    heartbeat = 0x11004,
   };
 
   struct preparearg {

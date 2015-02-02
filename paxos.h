@@ -30,19 +30,14 @@ class acceptor {
   std::map<unsigned,std::string> values;	// vals of each instance
 
   void commit_wo(unsigned instance, std::string v);
-  paxos_protocol::status preparereq(std::string src, 
-          paxos_protocol::preparearg a,
-          paxos_protocol::prepareres &r);
-  paxos_protocol::status acceptreq(std::string src, 
-          paxos_protocol::acceptarg a, int &r);
-  paxos_protocol::status decidereq(std::string src, 
-          paxos_protocol::decidearg a, int &r);
+  paxos_protocol::status preparereq(std::string src, paxos_protocol::preparearg a, paxos_protocol::prepareres &r);
+  paxos_protocol::status acceptreq(std::string src, paxos_protocol::acceptarg a, int &r);
+  paxos_protocol::status decidereq(std::string src, paxos_protocol::decidearg a, int &r);
 
   friend class log;
 
  public:
-  acceptor(class paxos_change *cfg, bool _first, std::string _me, 
-	std::string _value);
+  acceptor(class paxos_change *cfg, bool _first, std::string _me, std::string _value);
   ~acceptor() {};
   void commit(unsigned instance, std::string v);
   unsigned instance() { return instance_h; }
@@ -75,13 +70,9 @@ class proposer {
   prop_t my_n;		// number of the last proposal used in this instance
 
   void setn();
-  bool prepare(unsigned instance, std::vector<std::string> &accepts, 
-         std::vector<std::string> nodes,
-         std::string &v);
-  void accept(unsigned instance, std::vector<std::string> &accepts, 
-        std::vector<std::string> nodes, std::string v);
-  void decide(unsigned instance, std::vector<std::string> accepts,
-        std::string v);
+  bool prepare(unsigned instance, std::vector<std::string> &accepts, std::vector<std::string> nodes, std::string &v);
+  void accept(unsigned instance, std::vector<std::string> &accepts, std::vector<std::string> nodes, std::string v);
+  void decide(unsigned instance, std::vector<std::string> accepts, std::string v);
 
   void breakpoint1();
   void breakpoint2();

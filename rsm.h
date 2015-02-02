@@ -76,6 +76,7 @@ class rsm : public config_view_change {
   void set_state_transfer(rsm_state_transfer *_stf) { stf = _stf; };
   void recovery();
   void commit_change();
+  void commit_change_wo();
 
   template<class S, class A1, class R>
     void reg(int proc, S*, int (S::*meth)(const A1 a1, R &));

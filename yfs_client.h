@@ -3,14 +3,25 @@
 
 #include <string>
 //#include "yfs_protocol.h"
-#include "extent_client.h"
 #include <vector>
-
+#include "extent_client.h"
 #include "lock_protocol.h"
-#include "lock_client.h"
+#include "lock_client_cache.h"
 
-  class yfs_client {
+class lock_release_u : public lock_release_user {
+  public:
+	void dorelease(lock_protocol::lockid_t id);
+	lock_release_u(extent_client* _ec);
+  private:
+	extent_client* ec;
+};
+
+
+class yfs_client {
   extent_client *ec;
+  lock_client *lc;
+  lock_release_u *lu;
+  
  public:
 
   typedef unsigned long long inum;
@@ -42,10 +53,17 @@
 
   bool isfile(inum);
   bool isdir(inum);
-  inum ilookup(inum di, std::string name);
-
+  inum ilookup(inum id, const char* name);
+  int readdir(inum id, std::list<dirent>& entries );
+  int createFile(inum parent, const char *name, mode_t mode, inum& id);
+  int setattr(inum id, fileinfo &finfo);
   int getfile(inum, fileinfo &);
   int getdir(inum, dirinfo &);
+  int read(inum id,off_t off, size_t size, std::string &);
+  int unlink(inum parent, const char *name);
+  int open(inum id);
+  int createDir(inum parent, const char* name, mode_t mode, inum& id);
+  int write(inum id, off_t off, size_t size, const char* buf);
 };
 
 #endif 

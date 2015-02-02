@@ -8,6 +8,7 @@
 class config_view_change {
  public:
   virtual void commit_change() = 0;
+  virtual void commit_change_wo() = 0;
   virtual ~config_view_change() {};
 };
 

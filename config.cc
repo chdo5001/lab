@@ -60,7 +60,6 @@ config::config(std::string _first, std::string _me, config_view_change *_vc)
   // XXX hack; maybe should have its own port number
   pxsrpc = acc->get_rpcs();
   pxsrpc->reg(paxos_protocol::heartbeat, this, &config::heartbeat);
-
   assert(pthread_mutex_lock(&cfg_mutex)==0);
 
   reconstruct();
@@ -132,8 +131,7 @@ config::paxos_commit(unsigned instance, std::string value)
   assert(pthread_mutex_lock(&cfg_mutex)==0);
 
   newmem = members(value);
-  printf("config::paxos_commit: %d: %s\n", instance, 
-	 print_members(newmem).c_str());
+  printf("config::paxos_commit: %d: %s\n", instance, print_members(newmem).c_str());
 
   for (unsigned i = 0; i < mems.size(); i++) {
     printf("config::paxos_commit: is %s still a member?\n", mems[i].c_str());
@@ -147,7 +145,7 @@ config::paxos_commit(unsigned instance, std::string value)
   myvid = instance;
   if (vc) {
     assert(pthread_mutex_unlock(&cfg_mutex)==0);
-    vc->commit_change();
+    vc->commit_change_wo();
     assert(pthread_mutex_lock(&cfg_mutex)==0);
   }
   assert(pthread_mutex_unlock(&cfg_mutex)==0);
@@ -207,6 +205,7 @@ config::add(std::string new_m)
   assert(pthread_mutex_lock(&cfg_mutex)==0);
   if (r) {
     printf("config::add: proposer returned success\n");
+	//pthread_cond_signal(&config_cond);
   } else {
     printf("config::add: proposer returned failure\n");
   }
@@ -218,7 +217,7 @@ config::add(std::string new_m)
 bool
 config::remove_wo(std::string m)
 {
-  printf("config::remove: myvid %d remove? %s\n", myvid, m.c_str());
+  printf("config::remove: myvid %d remove: %s\n", myvid, m.c_str());
   std::vector<std::string> n;
   for (unsigned i = 0; i < mems.size(); i++) {
     if (mems[i] != m) n.push_back(mems[i]);
@@ -229,6 +228,7 @@ config::remove_wo(std::string m)
   assert(pthread_mutex_lock(&cfg_mutex)==0);
   if (r) {
     printf("config::remove: proposer returned success\n");
+	//pthread_cond_signal(&config_cond);
   } else {
     printf("config::remove: proposer returned failure\n");
   }
@@ -326,17 +326,14 @@ config::doheartbeat(std::string m)
   handle h(m);
   if (h.get_rpcc()) {
     assert(pthread_mutex_unlock(&cfg_mutex)==0);
-    ret = h.get_rpcc()->call(paxos_protocol::heartbeat, me, vid, r, 
-			 rpcc::to(1000));
+    ret = h.get_rpcc()->call(paxos_protocol::heartbeat, me, vid, r, rpcc::to(1000));
     assert(pthread_mutex_lock(&cfg_mutex)==0);
   } 
   if (ret != paxos_protocol::OK) {
-    if (ret == rpc_const::atmostonce_failure || 
-	ret == rpc_const::oldsrv_failure) {
+    if (ret == rpc_const::atmostonce_failure || ret == rpc_const::oldsrv_failure) {
       mgr.delete_handle(m);
     } else {
-      printf("doheartbeat: problem with %s (%d) my vid %d his vid %d\n", 
-	     m.c_str(), ret, vid, r);
+      printf("doheartbeat: problem with %s (%d) my vid %d his vid %d\n", m.c_str(), ret, vid, r);
       if (ret < 0) res = FAILURE;
       else res = VIEWERR;
     }

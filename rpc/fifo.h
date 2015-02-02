@@ -92,3 +92,4 @@ fifo<T>::deq(T *e)
 }
 
 #endif
+

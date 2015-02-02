@@ -1,3 +1,4 @@
+
 #ifndef connection_h
 #define connection_h 1
 
@@ -95,3 +96,4 @@ struct bundle {
 void start_accept_thread(chanmgr *mgr, int port, pthread_t *th, int *fd = NULL, int lossy=0);
 connection *connect_to_dst(const sockaddr_in &dst, chanmgr *mgr, int lossy=0);
 #endif
+
