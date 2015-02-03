@@ -11,12 +11,15 @@
 
 lock_client::lock_client(std::string dst)
 {
-  sockaddr_in dstsock;
-  make_sockaddr(dst.c_str(), &dstsock);
-  cl = new rpcc(dstsock);
-  if (cl->bind() < 0) {
-    printf("lock_client: call bind\n");
-  }
+  //sockaddr_in dstsock;
+  //make_sockaddr(dst.c_str(), &dstsock);
+  //cl = new rpcc(dstsock);
+  printf("lock_client::lock_client\n");
+  cl = new rsm_client(dst);
+  printf("lock_client::lock_client Done\n");
+  //if (cl->bind() < 0) {
+    //printf("lock_client: call bind\n");
+  //}
 }
 
 lock_client::~lock_client() {

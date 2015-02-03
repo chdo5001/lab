@@ -19,10 +19,11 @@ releasethread(void *x)
 
 int lock_client_cache::last_port = 0;
 
-lock_client_cache::lock_client_cache(std::string xdst, 
-				     class lock_release_user *_lu)
+lock_client_cache::lock_client_cache(std::string xdst, class lock_release_user *_lu)
   : lock_client(xdst), lu(_lu)
 {
+	//cl = new rsm_client(xdst);
+	printf("Create lock_client_cache\n");
 	pthread_mutex_init(&map_lock, NULL);
 	pthread_cond_init(&lock_free, NULL);
 	pthread_cond_init(&revoke_cond, NULL);
@@ -38,16 +39,23 @@ lock_client_cache::lock_client_cache(std::string xdst,
   id = host.str();
   last_port = rlock_port;
   rpcs *rlsrpc = new rpcs(rlock_port);
+  //rsm_client *rlsrpc = new rsm_client(rlock_port);
   int r;
   /* register RPC handlers with rlsrpc */
 	rlsrpc->reg(rlock_protocol::revoke, this, &lock_client_cache::revoke);
 	rlsrpc->reg(rlock_protocol::retry, this, &lock_client_cache::retry);
-	int ret = cl->call(lock_protocol::subscribe, cl->id(), id, r);
+	printf("Subscribe\n");
+	assert(cl != 0);
+	int _id = cl->id();
+	printf("ID: %d\n", _id);
+	int ret = cl->call(lock_protocol::subscribe, _id, id, r);
+	printf("Subscribe done\n");
   assert (ret == lock_protocol::OK);
+  printf("Create release thread\n");
   pthread_t th;
   r = pthread_create(&th, NULL, &releasethread, (void *) this);
   assert (r == 0);
-
+	printf("lock_client_cache object created\n");
 }
 
 lock_client_cache::~lock_client_cache() {
@@ -87,7 +95,9 @@ lock_client_cache::releaser()
 		}
 		m_lock_status[lid] = NONE;
 		pthread_mutex_unlock(&map_lock);
-		lu->dorelease(lid);
+		if (lu != 0) {
+			lu->dorelease(lid);
+		}
 		// if retry == 1, the server notifies this client when lock lid is free again
 		//printf("Trying to release lock %016llx for client %d on the server (Retry? 1==%d)\n", lid, cl->id(), retry);
 		ret = cl->call(lock_protocol::release, cl->id(), lid, retry, r);
@@ -103,6 +113,7 @@ lock_client_cache::releaser()
 lock_protocol::status
 lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 {
+	//printf("LOCK_CLIENT_CACHE ACQUIRE\n");
 	lock_protocol::status ret = lock_protocol::OK;
 	int r;
 	pthread_mutex_lock(&map_lock);
@@ -215,6 +226,7 @@ lock_client_cache::acquire(rlock_protocol::lockid_t lid)
 lock_protocol::status
 lock_client_cache::release(rlock_protocol::lockid_t lid)
 {
+	//printf("LOCK_CLIENT_CACHE RELEASE\n");
 	//printf("Free lock %016llx by thread %016lx on client %d\n", lid, pthread_self(), cl->id());
 	lock_protocol::status ret = lock_protocol::OK;
 	pthread_mutex_lock(&map_lock);

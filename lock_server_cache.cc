@@ -49,6 +49,7 @@ lock_server_cache::~lock_server_cache()
 lock_protocol::status
 lock_server_cache::subscribe(int clid, std::string host, int &)
 {
+	printf("Subscribe\n");
 	sockaddr_in dstsock;
 	make_sockaddr(host.c_str(), &dstsock);
 	rpcc* cl = new rpcc(dstsock);
@@ -68,6 +69,7 @@ lock_server_cache::subscribe(int clid, std::string host, int &)
 lock_protocol::status
 lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol::seqid_t seqid, int &) 
 {
+	printf("Acquire\n");
 	if (m_lock_status.count(lid) == 0) {
 		// Never saw this lock before. Create a map entry for it
 		m_lock_status[lid] = FREE;
@@ -135,6 +137,7 @@ lock_server_cache::acquire(int clid, lock_protocol::lockid_t lid, lock_protocol:
 
 lock_protocol::status
 lock_server_cache::release(int clid, lock_protocol::lockid_t lid, int retry, int&) {
+	printf("Release\n");
 	// if retry == true, the server notifies the client when lock lid is free again
 	assert(m_clid_rpcc.count(clid) != 0);
 	int ret = lock_protocol::OK;
@@ -168,6 +171,7 @@ lock_server_cache::release(int clid, lock_protocol::lockid_t lid, int retry, int
 lock_protocol::status
 lock_server_cache::stat(int clid, lock_protocol::lockid_t lid, int& r)
 {
+	printf("Stat\n");
 	assert(m_clid_rpcc.count(clid) != 0);
 	pthread_mutex_lock(&lock);
 	if (m_lock_clid_count[lid].count(clid) == 0) {
@@ -220,7 +224,11 @@ lock_server_cache::revoker()
 		}
 		pthread_mutex_unlock(&lock);
 		//printf("Revoking %016llx on client %d and seqid %016llx\n", lid, clid, seqid);
-		m_clid_rpcc[clid]->call(rlock_protocol::revoke, clid, lid, seqid, r);
+		if (rsm->amiprimary()) {
+			//printf("I'm primary. CALL REVOKE\n");
+			int ret = m_clid_rpcc[clid]->call(rlock_protocol::revoke, clid, lid, seqid, r);
+			assert (ret >= 0);
+		}
 	}
 }
 
@@ -264,7 +272,11 @@ lock_server_cache::retryer()
 			clid = it->second;
 			//printf("Calling retry for lock %016llx on client %d\n", lid, clid);
 			//ret = 
-			m_clid_rpcc[clid]->call(rlock_protocol::retry, clid, lid, r);
+			if (rsm->amiprimary()) {
+				//printf("I'm primary. CALL RETRY\n");
+				int ret = m_clid_rpcc[clid]->call(rlock_protocol::retry, clid, lid, r);
+				assert (ret >= 0);
+			}
 		}
 		m.clear();
 	}

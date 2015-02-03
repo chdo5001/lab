@@ -163,7 +163,8 @@ rsm::recovery()
 				//printf("Recovery Mutex acquired\n");
 			}
 		}
-	
+		// TODO: What is the next line for?
+		// TODO: Get State from the master (if you're not the master...).
 		if (r) inviewchange = false;
 		printf("recovery: go to sleep %d %d\n", insync, inviewchange);
 		pthread_cond_wait(&recovery_cond, &rsm_mutex);
@@ -228,6 +229,7 @@ rsm::statetransferdone(std::string m) {
 
 bool
 rsm::join(std::string m) {
+  inviewchange = true;
   handle h(m);
   int ret ;
   rsm_protocol::joinres r;
@@ -244,6 +246,7 @@ rsm::join(std::string m) {
   }
   printf("rsm::join: succeeded %s\n", r.log.c_str());
   cfg->restore(r.log);
+  inviewchange = false;
   return true;
 }
 
@@ -269,8 +272,11 @@ rsm::commit_change()
 void
 rsm::commit_change_wo() 
 {
+	inviewchange = true;
 	set_primary();
-	last_myvs.vid = cfg->vid();
+	// TODO: Review use of (last_)myvs
+	last_myvs = myvs;
+	myvs.vid = cfg->vid();
 	if (!cfg->ismember(cfg->myaddr())) {
 		pthread_cond_signal(&recovery_cond);
 	}
@@ -287,9 +293,12 @@ rsm::execute(int procno, std::string req)
   marshall rep;
   std::string reps;
   rsm_protocol::status ret = h->fn(args, rep);
+  printf("ret: %d\n", ret);
   marshall rep1;
   rep1 << ret;
   rep1 << rep.str();
+  reps = rep1.str();
+  printf("reps/1: %s\n", reps.c_str());
   return rep1.str();
 }
 
@@ -302,9 +311,59 @@ rsm::execute(int procno, std::string req)
 rsm_client_protocol::status
 rsm::client_invoke(int procno, std::string req, std::string &r)
 {
-  int ret = rsm_protocol::OK;
-  // For lab 8
-  return ret;
+	printf("client_invoke entered\n");
+  assert(pthread_mutex_lock(&invoke_mutex)==0);
+  int ret = rsm_client_protocol::OK;
+  if (inviewchange) {
+	  printf("inviewchange\n");
+	assert(pthread_mutex_unlock(&invoke_mutex)==0);
+	return rsm_client_protocol::BUSY;
+  }
+  if (!amiprimary()) {
+	  printf("notprimary\n");
+	assert(pthread_mutex_unlock(&invoke_mutex)==0);
+	return rsm_client_protocol::NOTPRIMARY;
+  }
+  printf("Try to acquire rsm_mutex...");
+  assert(pthread_mutex_lock(&rsm_mutex)==0);
+  printf("Acquired\n");
+  viewstamp new_vs(myvs.vid, myvs.seqno+1);
+  int dummy ;
+  
+  std::vector<std::string> mems = cfg->get_curview();
+  //assert(pthread_mutex_unlock(&rsm_mutex)==0);
+  std::vector<std::string>::iterator it = mems.begin();
+  assert(pthread_mutex_unlock(&rsm_mutex)==0);
+  for (;it != mems.end(); it++) {
+	if (*it == cfg->myaddr()) {
+		continue;
+	}
+	printf("Try to acquire rsm_mutex 2...");
+	assert(pthread_mutex_lock(&rsm_mutex)==0);  
+	printf("Acquired\n");
+	handle h(*it);
+	assert(pthread_mutex_unlock(&rsm_mutex)==0);
+	if (h.get_rpcc() != 0) {
+		printf("h.get_rpcc->call()\n");
+		ret = h.get_rpcc()->call(rsm_protocol::invoke, procno, new_vs, req, dummy, rpcc::to(120000));
+    }
+	if (h.get_rpcc() == 0 || ret < 0) {
+		printf("rsm::client_invoke: node failed %s %p %d\n Initiate Paxos\n", (*it).c_str(), h.get_rpcc(), ret);
+		// TODO: Start a paxos run
+		assert(pthread_mutex_unlock(&invoke_mutex)==0);
+		// TODO: Is this the correct return value?
+		return rsm_client_protocol::BUSY;
+	}
+  }
+  printf("client_invoke: execute\n");
+  r = execute(procno, req);
+  printf("Update myvs\n");
+  last_myvs = myvs;
+  myvs = new_vs;
+  printf("rsm::client_invoke: succeeded\n");
+  assert(pthread_mutex_unlock(&invoke_mutex)==0);
+  printf("Exit client_invoke\n");
+  return rsm_client_protocol::OK;
 }
 
 // 
@@ -317,9 +376,26 @@ rsm::client_invoke(int procno, std::string req, std::string &r)
 rsm_protocol::status
 rsm::invoke(int proc, viewstamp vs, std::string req, int &dummy)
 {
-  rsm_protocol::status ret = rsm_protocol::OK;
-  // For lab 8
-  return ret;
+	printf("rsm::invoke entered. procno: %d  myvs: %d, %d  new_vs: %d, %d \n", proc, myvs.vid, myvs.seqno, vs.vid, vs.seqno);
+	rsm_protocol::status ret = rsm_protocol::ERR;
+	assert(pthread_mutex_lock(&rsm_mutex) == 0);
+	if ((myvs.vid != vs.vid) || (myvs.seqno != vs.seqno-1) || (!cfg->ismember(cfg->myaddr()))) {
+		assert(pthread_mutex_unlock(&rsm_mutex) == 0);
+		return rsm_protocol::ERR;
+	}
+	std::string rep = execute(proc, req);
+	printf("Reply is: %s\n", rep.c_str());
+	unmarshall args(rep);
+	printf("original ret: %d\n", ret);
+	args >> ret;
+	printf("unmarshalled ret: %d\n", ret);
+	assert(pthread_mutex_unlock(&rsm_mutex) == 0);
+	if (ret == rsm_protocol::OK) {
+		last_myvs = myvs;
+		myvs = vs;
+	}
+	printf("rsm::invoke exit\n");	
+	return ret;
 }
 
 /**
@@ -371,7 +447,8 @@ rsm::joinreq(std::string m, viewstamp last, rsm_protocol::joinres &r)
 		//printf("rsm::joinreq  cfg->add() succesfull\n");
 		r.log = cfg->dump();
 	} else {
-		ret = rsm_client_protocol::BUSY;
+		ret = rsm_client_protocol::ERR;
+		//ret = rsm_client_protocol::BUSY;
 		//printf("rsm::joinreq  cfg->add() UNsuccesfull\n");
 	}
   }

@@ -11,15 +11,16 @@
 
 extent_client::extent_client(std::string dst)
 {
+  pthread_mutexattr_init(&mutex_attr);
+  pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
+  pthread_mutex_init(&lock, &mutex_attr);
   sockaddr_in dstsock;
 	make_sockaddr(dst.c_str(), &dstsock);
   cl = new rpcc(dstsock);
   if (cl->bind() != 0) {
     printf("extent_client: bind failed\n");
   }
-  pthread_mutexattr_init(&mutex_attr);
-  pthread_mutexattr_settype(&mutex_attr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&lock, &mutex_attr);
+
 }
 
 extent_client::~extent_client() {

@@ -6,6 +6,7 @@
 #include <string>
 #include "lock_protocol.h"
 #include "rpc.h"
+#include "rsm_client.h"
 #include <vector>
 #include <map>
 #include <sys/types.h>
@@ -15,7 +16,7 @@
 // Client interface to the lock server
 class lock_client {
   protected:
-	rpcc *cl;
+	rsm_client *cl;
   public:
 	lock_client(std::string d);
 	virtual ~lock_client();

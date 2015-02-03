@@ -16,6 +16,9 @@ rsm_client::rsm_client(std::string dst)
   primary.cl = new rpcc(dstsock);
   primary.nref = 0;
   int ret = primary.cl->bind(rpcc::to(1000));
+  printf("Retrieve id\n");
+  cl_id = primary.cl->id();
+  printf("ID is %d\n", cl_id);
   if (ret < 0) {
     printf("rsm_client::rsm_client bind failure %d failure w %s; exit\n", ret, 
      primary.id.c_str());
@@ -34,9 +37,15 @@ rsm_client::primary_failure()
   // For lab 8
 }
 
+int
+rsm_client::id() {
+	return cl_id;
+}
+
 rsm_protocol::status
 rsm_client::invoke(int proc, std::string req, std::string &rep)
 {
+	printf("rsm_client::Invoke enter\n");
   int ret;
   rpcc *cl;
   assert(pthread_mutex_lock(&rsm_client_mutex)==0);

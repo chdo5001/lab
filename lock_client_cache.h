@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include "rsm_client.h"
 
 // Classes that inherit lock_release_user can override dorelease so that 
 // that they will be called when lock_client releases a lock.
@@ -76,6 +77,7 @@ class lock_client_cache : public lock_client {
 	enum lock_status { NONE, FREE, LOCKED, RETRYING, ACQUIRING, RELEASING };
 	//typedef int l_status;
  private:
+	//rsm_client* cl;
   class lock_release_user *lu;
   int rlock_port;
   std::string hostname;

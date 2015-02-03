@@ -5,6 +5,7 @@
 #include "rsm_protocol.h"
 #include <string>
 #include <vector>
+#include <stdio.h>
 
 
 //
@@ -25,12 +26,14 @@ class rsm_client {
 
  protected:
   primary_t primary;
+  int cl_id;
   std::vector<std::string> known_mems;
   pthread_mutex_t rsm_client_mutex;
   void primary_failure();
   bool init_members(bool send_mem_rpc);
  public:
   rsm_client(std::string dst);
+  int id(); 
   rsm_protocol::status invoke(int proc, std::string req, std::string &rep);
 
   template<class R, class A1>
@@ -71,6 +74,7 @@ template<class R, class A1> int
 template<class R, class A1, class A2> int
   rsm_client::call(unsigned int proc, const A1 & a1, const A2 & a2, R & r)
 {
+	printf("rsm_client::call entered\n");
   marshall m;
   std::string rep;
   std::string res;
@@ -82,6 +86,7 @@ template<class R, class A1, class A2> int
   u >> res;
   unmarshall u1(res);
   u1 >> r;
+  printf("rsm_client::call exit\n");
   return intret;
 }
 

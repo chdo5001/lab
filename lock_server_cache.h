@@ -7,13 +7,13 @@
 #include "lock_server.h"
 #include <sys/time.h>
 #include <unistd.h>
-
 #include "rsm.h"
-	struct revoke_info {
-		lock_protocol::lockid_t lid;
-		int						clid;
-		rlock_protocol::seqid_t	seqid;
-	};
+
+struct revoke_info {
+	lock_protocol::lockid_t lid;
+	int						clid;
+	rlock_protocol::seqid_t	seqid;
+};
 	
 class lock_server_cache {
 
