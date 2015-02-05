@@ -145,7 +145,9 @@ config::paxos_commit(unsigned instance, std::string value)
   myvid = instance;
   if (vc) {
     assert(pthread_mutex_unlock(&cfg_mutex)==0);
-    vc->commit_change_wo();
+    printf("config::paxos_commit: vc->commit_change_wo\n");
+	vc->commit_change_wo();
+	printf("config::paxos_commit: vc->commit_change_wo DONE\n");
     assert(pthread_mutex_lock(&cfg_mutex)==0);
   }
   assert(pthread_mutex_unlock(&cfg_mutex)==0);

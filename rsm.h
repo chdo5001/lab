@@ -15,6 +15,8 @@
 class rsm : public config_view_change {
  private:
   void reg1(int proc, handler *);
+  
+  
  protected:
   std::map<int, handler *> procs;
   config *cfg;
@@ -48,6 +50,8 @@ class rsm : public config_view_change {
   pthread_cond_t recovery_cond;
   pthread_cond_t sync_cond;
   pthread_cond_t join_cond;
+  
+  std::vector<std::string> waiting_for_transfer;
 
   std::string execute(int procno, std::string req);
   rsm_client_protocol::status client_invoke(int procno, std::string req, std::string &r);

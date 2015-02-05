@@ -74,7 +74,6 @@ template<class R, class A1> int
 template<class R, class A1, class A2> int
   rsm_client::call(unsigned int proc, const A1 & a1, const A2 & a2, R & r)
 {
-	printf("rsm_client::call entered\n");
   marshall m;
   std::string rep;
   std::string res;
@@ -86,7 +85,6 @@ template<class R, class A1, class A2> int
   u >> res;
   unmarshall u1(res);
   u1 >> r;
-  printf("rsm_client::call exit\n");
   return intret;
 }
 
