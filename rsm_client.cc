@@ -35,6 +35,35 @@ void
 rsm_client::primary_failure()
 {
   // For lab 8
+  bool r = false;
+  while (!r) {
+	if (known_mems.size() == 0) {
+		printf("Can't reach a replica to get member list. Aborting.\n");
+		exit(0);
+	}
+	std::string new_primary = known_mems.back();
+	known_mems.pop_back();
+	
+	printf("rsm_client::init_members: primary %s\n", new_primary.c_str());
+	
+	if (new_primary != primary.id) {
+		sockaddr_in dstsock;
+		make_sockaddr(new_primary.c_str(), &dstsock);
+		primary.id = new_primary;
+		if (primary.cl) {
+			assert(primary.nref == 0);  // XXX fix: delete cl only when refcnt=0
+			delete primary.cl; 
+		}
+		primary.cl = new rpcc(dstsock);
+	
+		if (primary.cl->bind(rpcc::to(1000)) < 0) {
+			printf("rsm_client::rsm_client cannot bind to primary\n");
+			r =false;
+		}
+	}
+	r = init_members(true);
+  }
+  printf("Found new primary\n");
 }
 
 int
